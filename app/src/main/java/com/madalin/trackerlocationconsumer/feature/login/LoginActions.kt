@@ -1,4 +1,6 @@
-package com.madalin.trackerlocationconsumer.entity
+package com.madalin.trackerlocationconsumer.feature.login
+
+import com.madalin.trackerlocationconsumer.entity.Action
 
 sealed class LoginAction : Action {
     data class DoLogin(
