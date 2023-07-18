@@ -19,11 +19,9 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.TextStyle
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.style.TextDecoration
@@ -33,7 +31,6 @@ import androidx.navigation.NavHostController
 import com.madalin.trackerlocationconsumer.R
 import com.madalin.trackerlocationconsumer.feature.auth.SignUpScreenAction
 import com.madalin.trackerlocationconsumer.feature.auth.SignUpViewModel
-import com.madalin.trackerlocationconsumer.feature.auth.SignUpViewState
 import com.madalin.trackerlocationconsumer.navigation.Routes
 import com.madalin.trackerlocationconsumer.ui.component.ErrorMessageText
 import com.madalin.trackerlocationconsumer.ui.theme.Purple40
@@ -60,22 +57,35 @@ fun SignUpScreen(
         )
 
         ErrorMessageText(errorMessage = viewState.errorMessage)
-        UsernameTextField(signUpViewModel = signUpViewModel, username = viewState.username)
-        EmailTextField(signUpViewModel = signUpViewModel, email = viewState.email)
-        PasswordTextField(signUpViewModel = signUpViewModel, password = viewState.password)
-        SignUpButton(signUpViewModel = signUpViewModel, viewState = viewState, navController = navController)
+        UsernameTextField(
+            handleAction = { username -> signUpViewModel.handleAction(SignUpScreenAction.UpdateUsernameTextField(username)) },
+            username = viewState.username
+        )
+        EmailTextField(
+            handleAction = { email -> signUpViewModel.handleAction(SignUpScreenAction.UpdateEmailTextField(email)) },
+            email = viewState.email
+        )
+        PasswordTextField(
+            handleAction = { password -> signUpViewModel.handleAction(SignUpScreenAction.UpdatePasswordTextField(password)) },
+            password = viewState.password
+        )
+        SignUpButton(
+            createAccount = { signUpViewModel.handleAction(SignUpScreenAction.CreateAccount(viewState.username, viewState.email, viewState.password)) },
+            hasRegistered = viewState.hasRegistered,
+            navToLogin = { navController.navigate(Routes.Login.route) }
+        )
     }
 
-    LoginRedirectText(navController = navController)
+    LoginRedirectText(navToLogin = { navController.navigate(Routes.Login.route) })
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun UsernameTextField(signUpViewModel: SignUpViewModel, username: String) {
+internal fun UsernameTextField(handleAction: (String) -> Unit, username: String) {
     TextField(
         modifier = Modifier.fillMaxWidth(),
         value = username,
-        onValueChange = { signUpViewModel.handleAction(SignUpScreenAction.UpdateUsernameTextField(it)) },
+        onValueChange = { handleAction(it) },
         placeholder = { Text(text = stringResource(id = R.string.username)) },
         singleLine = true
     )
@@ -83,11 +93,11 @@ fun UsernameTextField(signUpViewModel: SignUpViewModel, username: String) {
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun EmailTextField(signUpViewModel: SignUpViewModel, email: String) {
+private fun EmailTextField(handleAction: (String) -> Unit, email: String) {
     TextField(
         modifier = Modifier.fillMaxWidth(),
         value = email,
-        onValueChange = { signUpViewModel.handleAction(SignUpScreenAction.UpdateEmailTextField(it)) },
+        onValueChange = { handleAction(it) },
         placeholder = { Text(text = stringResource(id = R.string.email)) },
         singleLine = true
     )
@@ -95,11 +105,11 @@ fun EmailTextField(signUpViewModel: SignUpViewModel, email: String) {
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun PasswordTextField(signUpViewModel: SignUpViewModel, password: String) {
+private fun PasswordTextField(handleAction: (String) -> Unit, password: String) {
     TextField(
         modifier = Modifier.fillMaxWidth(),
         value = password,
-        onValueChange = { signUpViewModel.handleAction(SignUpScreenAction.UpdatePasswordTextField(it)) },
+        onValueChange = { handleAction(it) },
         placeholder = { Text(text = stringResource(id = R.string.password)) },
         visualTransformation = PasswordVisualTransformation(),
         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
@@ -108,18 +118,10 @@ fun PasswordTextField(signUpViewModel: SignUpViewModel, password: String) {
 }
 
 @Composable
-fun SignUpButton(signUpViewModel: SignUpViewModel, viewState: SignUpViewState, navController: NavHostController) {
+fun SignUpButton(createAccount: () -> Unit, hasRegistered: Boolean, navToLogin: () -> Unit) {
     Button(modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(5.dp),
-        onClick = {
-            signUpViewModel.handleAction(
-                SignUpScreenAction.CreateAccount(
-                    username = viewState.username,
-                    email = viewState.email,
-                    password = viewState.password
-                )
-            )
-        }) {
+        onClick = { createAccount() }) {
         Text(
             text = stringResource(id = R.string.sign_up),
             fontSize = 20.sp
@@ -127,15 +129,15 @@ fun SignUpButton(signUpViewModel: SignUpViewModel, viewState: SignUpViewState, n
     }
 
     // observe the hasRegistered state and navigate to the Login screen when it becomes true
-    LaunchedEffect(viewState.hasRegistered) {
-        if (viewState.hasRegistered) {
-            navController.navigate(Routes.Login.route)
+    LaunchedEffect(hasRegistered) {
+        if (hasRegistered) {
+            navToLogin()
         }
     }
 }
 
 @Composable
-fun LoginRedirectText(navController: NavHostController) {
+fun LoginRedirectText(navToLogin: () -> Unit) {
     Box(modifier = Modifier.fillMaxSize()) {
         ClickableText(
             text = AnnotatedString(stringResource(R.string.login)),
@@ -147,7 +149,7 @@ fun LoginRedirectText(navController: NavHostController) {
                 textDecoration = TextDecoration.Underline,
                 color = Purple40
             ),
-            onClick = { navController.navigate(Routes.Login.route) }
+            onClick = { navToLogin() }
         )
     }
 }

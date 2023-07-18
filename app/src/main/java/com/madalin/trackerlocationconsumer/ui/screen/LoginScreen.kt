@@ -17,14 +17,11 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.TextStyle
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.style.TextDecoration
@@ -35,7 +32,6 @@ import com.madalin.trackerlocationconsumer.R
 import com.madalin.trackerlocationconsumer.entity.LoginAction
 import com.madalin.trackerlocationconsumer.feature.auth.LoginScreenAction
 import com.madalin.trackerlocationconsumer.feature.auth.LoginViewModel
-import com.madalin.trackerlocationconsumer.feature.auth.LoginViewState
 import com.madalin.trackerlocationconsumer.navigation.Routes
 import com.madalin.trackerlocationconsumer.ui.component.ErrorMessageText
 import com.madalin.trackerlocationconsumer.ui.theme.Purple40
@@ -62,21 +58,31 @@ fun LoginScreen(
         )
 
         ErrorMessageText(errorMessage = viewState.errorMessage)
-        EmailTextField(loginViewModel = loginViewModel, email = viewState.email)
-        PasswordTextField(loginViewModel = loginViewModel, password = viewState.password)
-        LoginButton(loginViewModel = loginViewModel, viewState = viewState, navController = navController)
+        EmailTextField(
+            handleAction = { email -> loginViewModel.handleLoginScreenAction(LoginScreenAction.UpdateEmailTextField(email)) },
+            email = viewState.email
+        )
+        PasswordTextField(
+            handleAction = { password -> loginViewModel.handleLoginScreenAction(LoginScreenAction.UpdatePasswordTextField(password)) },
+            password = viewState.password
+        )
+        LoginButton(
+            login = { loginViewModel.handleAction(LoginAction.DoLogin(email = viewState.email, password = viewState.password)) },
+            isLoggedIn = viewState.isLoggedIn,
+            navToTracker = { navController.navigate(Routes.Tracker.route) }
+        )
     }
 
-    SignUpRedirectText(navController = navController)
+    SignUpRedirectText(navToSignUp = { navController.navigate(Routes.SignUp.route) })
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun EmailTextField(loginViewModel: LoginViewModel, email: String) {
+private fun EmailTextField(handleAction: (String) -> Unit, email: String) {
     TextField(
         modifier = Modifier.fillMaxWidth(),
         value = email,
-        onValueChange = { loginViewModel.handleLoginScreenAction(LoginScreenAction.UpdateEmailTextField(it)) },
+        onValueChange = { handleAction(it) },
         placeholder = { Text(text = stringResource(R.string.email)) },
         singleLine = true
     )
@@ -84,11 +90,11 @@ fun EmailTextField(loginViewModel: LoginViewModel, email: String) {
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun PasswordTextField(loginViewModel: LoginViewModel, password: String) {
+private fun PasswordTextField(handleAction: (String) -> Unit, password: String) {
     TextField(
         modifier = Modifier.fillMaxWidth(),
         value = password,
-        onValueChange = { loginViewModel.handleLoginScreenAction(LoginScreenAction.UpdatePasswordTextField(it)) },
+        onValueChange = { handleAction(it) },
         placeholder = { Text(text = stringResource(id = R.string.password)) },
         visualTransformation = PasswordVisualTransformation(),
         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
@@ -97,19 +103,11 @@ fun PasswordTextField(loginViewModel: LoginViewModel, password: String) {
 }
 
 @Composable
-fun LoginButton(loginViewModel: LoginViewModel, viewState: LoginViewState, navController: NavHostController) {
+fun LoginButton(login: () -> Unit, isLoggedIn: Boolean, navToTracker: () -> Unit) {
     Button(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(5.dp),
-        onClick = {
-            // calls the associated view model's handleAction() with the given action
-            loginViewModel.handleAction(
-                LoginAction.DoLogin(
-                    email = viewState.email,
-                    password = viewState.password
-                )
-            )
-        }
+        onClick = { login() }
     ) {
         Text(
             text = stringResource(R.string.login),
@@ -118,15 +116,15 @@ fun LoginButton(loginViewModel: LoginViewModel, viewState: LoginViewState, navCo
     }
 
     // observe the isLoggedIn state and navigate to the Tracker screen when it becomes true
-    LaunchedEffect(viewState.isLoggedIn) {
-        if (viewState.isLoggedIn) {
-            navController.navigate(Routes.Tracker.route)
+    LaunchedEffect(isLoggedIn) {
+        if (isLoggedIn) {
+            navToTracker()
         }
     }
 }
 
 @Composable
-fun SignUpRedirectText(navController: NavHostController) {
+fun SignUpRedirectText(navToSignUp: () -> Unit) {
     Box(modifier = Modifier.fillMaxSize()) {
         ClickableText(
             text = AnnotatedString(stringResource(R.string.sign_up)),
@@ -138,7 +136,7 @@ fun SignUpRedirectText(navController: NavHostController) {
                 textDecoration = TextDecoration.Underline,
                 color = Purple40
             ),
-            onClick = { navController.navigate(Routes.SignUp.route) } // navigate to Sign Up
+            onClick = { navToSignUp() } // navigate to Sign Up
         )
     }
 }
