@@ -1,8 +1,12 @@
-package com.madalin.trackerlocationconsumer.entity
+package com.madalin.trackerlocationconsumer.model
 
 import android.util.Patterns
 import com.google.firebase.auth.ktx.auth
 import com.google.firebase.ktx.Firebase
+import com.madalin.trackerlocationconsumer.entity.Action
+import com.madalin.trackerlocationconsumer.entity.AppLoginState
+import com.madalin.trackerlocationconsumer.entity.AppState
+import com.madalin.trackerlocationconsumer.entity.LoginAction
 import com.madalin.trackerlocationconsumer.feature.tracker.TrackerAction
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers

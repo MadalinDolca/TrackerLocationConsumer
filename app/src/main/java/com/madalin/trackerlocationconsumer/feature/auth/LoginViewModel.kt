@@ -1,12 +1,9 @@
 package com.madalin.trackerlocationconsumer.feature.auth
 
-import android.util.Patterns
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.google.firebase.auth.ktx.auth
-import com.google.firebase.ktx.Firebase
 import com.madalin.trackerlocationconsumer.entity.AppState
-import com.madalin.trackerlocationconsumer.entity.AppStateDriver
+import com.madalin.trackerlocationconsumer.model.AppStateDriver
 import com.madalin.trackerlocationconsumer.entity.LoginAction
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow

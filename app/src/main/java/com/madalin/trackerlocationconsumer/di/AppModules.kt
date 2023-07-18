@@ -1,6 +1,6 @@
 package com.madalin.trackerlocationconsumer.di
 
-import com.madalin.trackerlocationconsumer.entity.AppStateDriver
+import com.madalin.trackerlocationconsumer.model.AppStateDriver
 import com.madalin.trackerlocationconsumer.feature.auth.LoginViewModel
 import com.madalin.trackerlocationconsumer.feature.auth.SignUpViewModel
 import com.madalin.trackerlocationconsumer.feature.tracker.TrackerViewModel

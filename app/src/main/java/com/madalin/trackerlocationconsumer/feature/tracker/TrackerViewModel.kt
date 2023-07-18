@@ -1,7 +1,7 @@
 package com.madalin.trackerlocationconsumer.feature.tracker
 
 import androidx.lifecycle.ViewModel
-import com.madalin.trackerlocationconsumer.entity.AppStateDriver
+import com.madalin.trackerlocationconsumer.model.AppStateDriver
 import com.madalin.trackerlocationconsumer.hivemq.BrokerCredentials
 import com.madalin.trackerlocationconsumer.hivemq.ClientCredentials
 import com.madalin.trackerlocationconsumer.hivemq.Topic
