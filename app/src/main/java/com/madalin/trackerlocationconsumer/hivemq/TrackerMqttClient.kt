@@ -20,11 +20,7 @@ class TrackerMqttClient(var host: String, var port: Int) {
     //.identifier(ClientCredentials.clientId)
     //.automaticReconnectWithDefaultConfig()
 
-    private var messageReceivedCallback: ((MqttMessage) -> Unit)? = null
-
-    fun setMessageReceivedCallback(callback: (MqttMessage) -> Unit) {
-        messageReceivedCallback = callback
-    }
+    private var messageReceivedCallback: ((MqttMessage) -> Unit)? = null // stores the callback function
 
     /**
      * Connects to HiveMQ Cloud with TLS and username/password.
@@ -50,8 +46,15 @@ class TrackerMqttClient(var host: String, var port: Int) {
         client.toAsync().publishes(MqttGlobalPublishFilter.ALL) { publish: Mqtt5Publish ->
             //println("Received message: " + publish.topic + " -> " + StandardCharsets.UTF_8.decode(publish.payload.get()))
             val mqttMessage = MqttMessage(publish.topic.toString(), publish.payloadAsBytes.decodeToString())
-            messageReceivedCallback?.invoke(mqttMessage)
+            messageReceivedCallback?.invoke(mqttMessage) // invokes the callback function
         }
+    }
+
+    /**
+     * Callback to receive the published MQTT messages.
+     */
+    fun setMessageReceivedCallback(callback: (MqttMessage) -> Unit) {
+        messageReceivedCallback = callback
     }
 
     /**
