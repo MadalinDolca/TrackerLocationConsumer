@@ -1,0 +1,39 @@
+{
+  "project_info": {
+    "project_number": "470553769543",
+    "project_id": "tracker-000",
+    "storage_bucket": "tracker-000.appspot.com"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:470553769543:android:c93ccd5f344ba12932e362",
+        "android_client_info": {
+          "package_name": "com.madalin.trackerlocationconsumer"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "470553769543-4vbdkrsjkusu1a0cnrknks11kup5fvvh.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBlxZRUzE3et64fGrFkyRE0xrPdB9siIDA"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "470553769543-4vbdkrsjkusu1a0cnrknks11kup5fvvh.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

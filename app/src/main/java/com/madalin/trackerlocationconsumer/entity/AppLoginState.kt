@@ -1,12 +1,12 @@
-package com.madalin.trackerlocationconsumer.feature.login
+package com.madalin.trackerlocationconsumer.entity
 
 /**
  * The state of the login functionality withing the app.
  * It holds information related to the user.
  */
-data class LoginState(
+data class AppLoginState(
     val isLoggedIn: Boolean = false,
-    val name: String = "",
+    val username: String = "",
     val email: String = "",
     val lastError: String? = null
 )

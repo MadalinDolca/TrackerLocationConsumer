@@ -1,7 +1,7 @@
-package com.madalin.trackerlocationconsumer.feature.login.ui
+package com.madalin.trackerlocationconsumer.feature.auth
 
 data class LoginViewState(
-    val username: String = "",
+    val email: String = "",
     val password: String = "",
     val isLoggedIn: Boolean = false,
     val errorMessage: String? = null
