@@ -30,4 +30,7 @@ sealed class TrackerAction : Action {
 
     object StartTracking : TrackerAction()
     object StopTracking : TrackerAction()
+
+    object StartBringToTarget : TrackerAction()
+    object StopBringToTarget : TrackerAction()
 }

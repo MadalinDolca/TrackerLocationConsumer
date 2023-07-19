@@ -1,6 +1,7 @@
 package com.madalin.trackerlocationconsumer
 
 import android.app.Application
+import com.google.android.gms.maps.MapsInitializer
 import com.madalin.trackerlocationconsumer.di.appModule
 import com.madalin.trackerlocationconsumer.di.viewModelModule
 import org.koin.android.ext.koin.androidContext
@@ -17,5 +18,8 @@ class ApplicationClass : Application() {
             androidContext(this@ApplicationClass)
             modules(appModule, viewModelModule)
         }
+
+        // initialize Google Maps SDK
+        MapsInitializer.initialize(this)
     }
 }

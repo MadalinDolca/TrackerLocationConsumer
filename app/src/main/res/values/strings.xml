@@ -6,4 +6,8 @@
     <string name="password">Password</string>
     <string name="sign_up">Sign up</string>
     <string name="username">Username</string>
+    <string name="stop_tracking">Stop tracking</string>
+    <string name="my_location">My location</string>
+    <string name="bring_me_to_target">Bring me to target</string>
+    <string name="stop_bringing">Stop bringing</string>
 </resources>
