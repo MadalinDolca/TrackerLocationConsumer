@@ -1,14 +1,11 @@
 package com.madalin.trackerlocationconsumer.ui.screen
 
 import androidx.compose.runtime.Composable
-import androidx.navigation.compose.NavHost
-import androidx.navigation.compose.composable
-import androidx.navigation.compose.rememberNavController
-import com.madalin.trackerlocationconsumer.navigation.Routes
 
+@Deprecated("No longer used since Navigation was replaced with Compose Destinations.")
 @Composable
 fun MainScreen() {
-    val navController = rememberNavController()
+    /*val navController = rememberNavController()
 
     NavHost(navController = navController, startDestination = Routes.Login.route) {
         composable(Routes.Login.route) { LoginScreen(navController = navController) }
@@ -19,5 +16,5 @@ fun MainScreen() {
         }
 
         composable(Routes.Tracker.route) { TrackerScreen(navController = navController) }
-    }
+    }*/
 }

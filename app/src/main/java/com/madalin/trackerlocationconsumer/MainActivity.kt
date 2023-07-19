@@ -4,7 +4,10 @@ import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import com.madalin.trackerlocationconsumer.ui.screen.MainScreen
+import com.madalin.trackerlocationconsumer.ui.screen.NavGraphs
 import com.madalin.trackerlocationconsumer.ui.theme.TrackerLocationConsumerTheme
+import com.ramcosta.composedestinations.DestinationsNavHost
+import com.ramcosta.composedestinations.spec.NavGraphSpec
 
 class MainActivity() : ComponentActivity()/*, AndroidScopeComponent*/ {
 
@@ -16,7 +19,7 @@ class MainActivity() : ComponentActivity()/*, AndroidScopeComponent*/ {
         super.onCreate(savedInstanceState)
         setContent {
             TrackerLocationConsumerTheme {
-                MainScreen()
+                DestinationsNavHost(navGraph = NavGraphs.root) //MainScreen()
             }
         }
     }

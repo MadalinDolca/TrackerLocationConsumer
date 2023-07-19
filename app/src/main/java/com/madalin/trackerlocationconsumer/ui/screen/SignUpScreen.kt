@@ -10,7 +10,6 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.ClickableText
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.Button
-import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextField
 import androidx.compose.runtime.Composable
@@ -27,19 +26,21 @@ import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.navigation.NavHostController
 import com.madalin.trackerlocationconsumer.R
 import com.madalin.trackerlocationconsumer.feature.auth.SignUpScreenAction
 import com.madalin.trackerlocationconsumer.feature.auth.SignUpViewModel
-import com.madalin.trackerlocationconsumer.navigation.Routes
 import com.madalin.trackerlocationconsumer.ui.component.ErrorMessageText
+import com.madalin.trackerlocationconsumer.ui.screen.destinations.LoginScreenDestination
 import com.madalin.trackerlocationconsumer.ui.theme.Purple40
+import com.ramcosta.composedestinations.annotation.Destination
+import com.ramcosta.composedestinations.navigation.DestinationsNavigator
 import org.koin.androidx.compose.getViewModel
 
+@Destination
 @Composable
 fun SignUpScreen(
     signUpViewModel: SignUpViewModel = getViewModel(),
-    navController: NavHostController
+    navigator: DestinationsNavigator
 ) {
     val viewState by signUpViewModel.viewState.collectAsState()
 
@@ -72,14 +73,13 @@ fun SignUpScreen(
         SignUpButton(
             createAccount = { signUpViewModel.handleAction(SignUpScreenAction.CreateAccount(viewState.username, viewState.email, viewState.password)) },
             hasRegistered = viewState.hasRegistered,
-            navToLogin = { navController.navigate(Routes.Login.route) }
+            navToLogin = { navigator.navigate(LoginScreenDestination) }
         )
     }
 
-    LoginRedirectText(navToLogin = { navController.navigate(Routes.Login.route) })
+    LoginRedirectText(navToLogin = { navigator.navigate(LoginScreenDestination) })
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 internal fun UsernameTextField(handleAction: (String) -> Unit, username: String) {
     TextField(
@@ -91,7 +91,6 @@ internal fun UsernameTextField(handleAction: (String) -> Unit, username: String)
     )
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun EmailTextField(handleAction: (String) -> Unit, email: String) {
     TextField(
@@ -103,7 +102,6 @@ private fun EmailTextField(handleAction: (String) -> Unit, email: String) {
     )
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun PasswordTextField(handleAction: (String) -> Unit, password: String) {
     TextField(

@@ -13,15 +13,17 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
-import androidx.navigation.NavHostController
 import com.madalin.trackerlocationconsumer.R
 import com.madalin.trackerlocationconsumer.feature.tracker.TrackerViewModel
+import com.ramcosta.composedestinations.annotation.Destination
+import com.ramcosta.composedestinations.navigation.DestinationsNavigator
 import org.koin.androidx.compose.getViewModel
 
+@Destination
 @Composable
 fun TrackerScreen(
     trackerViewModel: TrackerViewModel = getViewModel(),
-    navController: NavHostController
+    navigator: DestinationsNavigator
 ) {
     val viewState by trackerViewModel.viewState.collectAsState()
 

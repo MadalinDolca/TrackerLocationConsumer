@@ -10,7 +10,6 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.ClickableText
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.Button
-import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextField
 import androidx.compose.runtime.Composable
@@ -27,20 +26,25 @@ import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.navigation.NavHostController
 import com.madalin.trackerlocationconsumer.R
 import com.madalin.trackerlocationconsumer.entity.LoginAction
 import com.madalin.trackerlocationconsumer.feature.auth.LoginScreenAction
 import com.madalin.trackerlocationconsumer.feature.auth.LoginViewModel
-import com.madalin.trackerlocationconsumer.navigation.Routes
 import com.madalin.trackerlocationconsumer.ui.component.ErrorMessageText
+import com.madalin.trackerlocationconsumer.ui.screen.destinations.SignUpScreenDestination
+import com.madalin.trackerlocationconsumer.ui.screen.destinations.TrackerScreenDestination
 import com.madalin.trackerlocationconsumer.ui.theme.Purple40
+import com.ramcosta.composedestinations.annotation.Destination
+import com.ramcosta.composedestinations.annotation.RootNavGraph
+import com.ramcosta.composedestinations.navigation.DestinationsNavigator
 import org.koin.androidx.compose.getViewModel
 
+@RootNavGraph(start = true) // start destination
+@Destination
 @Composable
 fun LoginScreen(
     loginViewModel: LoginViewModel = getViewModel(), // get the view model from koin (same as koinViewModel())
-    navController: NavHostController
+    navigator: DestinationsNavigator
 ) {
     val viewState by loginViewModel.viewState.collectAsState() // obtains the state of the view from the view model
 
@@ -69,14 +73,13 @@ fun LoginScreen(
         LoginButton(
             login = { loginViewModel.handleAction(LoginAction.DoLogin(email = viewState.email, password = viewState.password)) },
             isLoggedIn = viewState.isLoggedIn,
-            navToTracker = { navController.navigate(Routes.Tracker.route) }
+            navToTracker = { navigator.navigate(TrackerScreenDestination) }
         )
     }
 
-    SignUpRedirectText(navToSignUp = { navController.navigate(Routes.SignUp.route) })
+    SignUpRedirectText(navToSignUp = { navigator.navigate(SignUpScreenDestination) })
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun EmailTextField(handleAction: (String) -> Unit, email: String) {
     TextField(
@@ -88,7 +91,6 @@ private fun EmailTextField(handleAction: (String) -> Unit, email: String) {
     )
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun PasswordTextField(handleAction: (String) -> Unit, password: String) {
     TextField(
