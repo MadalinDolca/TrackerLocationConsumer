@@ -27,9 +27,10 @@ import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.madalin.trackerlocationconsumer.R
-import com.madalin.trackerlocationconsumer.feature.auth.SignUpScreenAction
-import com.madalin.trackerlocationconsumer.feature.auth.SignUpViewModel
+import com.madalin.trackerlocationconsumer.feature.auth.signup.SignUpAction
+import com.madalin.trackerlocationconsumer.feature.auth.signup.SignUpViewModel
 import com.madalin.trackerlocationconsumer.ui.component.ErrorMessageText
+import com.madalin.trackerlocationconsumer.ui.component.ScreenTitle
 import com.madalin.trackerlocationconsumer.ui.screen.destinations.LoginScreenDestination
 import com.madalin.trackerlocationconsumer.ui.theme.Purple40
 import com.ramcosta.composedestinations.annotation.Destination
@@ -51,27 +52,22 @@ fun SignUpScreen(
         verticalArrangement = Arrangement.spacedBy(10.dp),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        Text(
-            text = stringResource(R.string.sign_up),
-            modifier = Modifier.padding(bottom = 10.dp),
-            fontSize = 40.sp
-        )
-
+        ScreenTitle(title = stringResource(R.string.sign_up))
         ErrorMessageText(errorMessage = viewState.errorMessage)
         UsernameTextField(
-            handleAction = { username -> signUpViewModel.handleAction(SignUpScreenAction.UpdateUsernameTextField(username)) },
+            handleAction = { username -> signUpViewModel.handleSignUpAction(SignUpAction.UpdateUsernameTextField(username)) },
             username = viewState.username
         )
         EmailTextField(
-            handleAction = { email -> signUpViewModel.handleAction(SignUpScreenAction.UpdateEmailTextField(email)) },
+            handleAction = { email -> signUpViewModel.handleSignUpAction(SignUpAction.UpdateEmailTextField(email)) },
             email = viewState.email
         )
         PasswordTextField(
-            handleAction = { password -> signUpViewModel.handleAction(SignUpScreenAction.UpdatePasswordTextField(password)) },
+            handleAction = { password -> signUpViewModel.handleSignUpAction(SignUpAction.UpdatePasswordTextField(password)) },
             password = viewState.password
         )
         SignUpButton(
-            createAccount = { signUpViewModel.handleAction(SignUpScreenAction.CreateAccount(viewState.username, viewState.email, viewState.password)) },
+            createAccount = { signUpViewModel.handleSignUpAction(SignUpAction.CreateAccount(viewState.username, viewState.email, viewState.password)) },
             hasRegistered = viewState.hasRegistered,
             navToLogin = { navigator.navigate(LoginScreenDestination) }
         )

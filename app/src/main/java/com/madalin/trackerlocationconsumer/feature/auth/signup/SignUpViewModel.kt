@@ -1,31 +1,27 @@
-package com.madalin.trackerlocationconsumer.feature.auth
+package com.madalin.trackerlocationconsumer.feature.auth.signup
 
 import android.util.Patterns
 import androidx.lifecycle.ViewModel
-import com.google.firebase.auth.ktx.auth
-import com.google.firebase.firestore.ktx.firestore
-import com.google.firebase.ktx.Firebase
 import com.madalin.trackerlocationconsumer.model.User
-import com.madalin.trackerlocationconsumer.util.DBCollection
+import com.madalin.trackerlocationconsumer.repository.FirebaseRepositoryImpl
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 
-class SignUpViewModel : ViewModel() {
+class SignUpViewModel(
+    private val repository: FirebaseRepositoryImpl
+) : ViewModel() {
     private val viewStateInternal = MutableStateFlow(SignUpViewState())
     val viewState = viewStateInternal.asStateFlow()
 
-    private val auth = Firebase.auth
-    private val firestore = Firebase.firestore
-
     /**
-     * Determines the [SignUpScreenAction] type and calls the appropriate handle method with this
+     * Determines the [SignUpAction] type and calls the appropriate handle method with this
      * [signUpAction] as a parameter.
      * @param signUpAction action to handle
      */
-    fun handleAction(signUpAction: SignUpScreenAction) {
+    fun handleSignUpAction(signUpAction: SignUpAction) {
         when (signUpAction) {
-            is SignUpScreenAction.UpdateUsernameTextField -> {
+            is SignUpAction.UpdateUsernameTextField -> {
                 viewStateInternal.update {
                     it.copy(
                         username = signUpAction.username,
@@ -34,7 +30,7 @@ class SignUpViewModel : ViewModel() {
                 }
             }
 
-            is SignUpScreenAction.UpdateEmailTextField -> {
+            is SignUpAction.UpdateEmailTextField -> {
                 viewStateInternal.update {
                     it.copy(
                         email = signUpAction.email,
@@ -43,7 +39,7 @@ class SignUpViewModel : ViewModel() {
                 }
             }
 
-            is SignUpScreenAction.UpdatePasswordTextField -> {
+            is SignUpAction.UpdatePasswordTextField -> {
                 viewStateInternal.update {
                     it.copy(
                         password = signUpAction.password,
@@ -52,13 +48,13 @@ class SignUpViewModel : ViewModel() {
                 }
             }
 
-            is SignUpScreenAction.CreateAccount -> createAccount(
+            is SignUpAction.CreateAccount -> createAccount(
                 signUpAction.username,
                 signUpAction.email,
                 signUpAction.password
             )
 
-            SignUpScreenAction.OnSignUpSuccess -> {
+            SignUpAction.OnSignUpSuccess -> {
                 viewStateInternal.update {
                     it.copy(
                         hasRegistered = true,
@@ -67,7 +63,7 @@ class SignUpViewModel : ViewModel() {
                 }
             }
 
-            is SignUpScreenAction.OnSignUpFailure -> {
+            is SignUpAction.OnSignUpFailure -> {
                 viewStateInternal.update {
                     it.copy(errorMessage = signUpAction.errorMessage)
                 }
@@ -78,6 +74,7 @@ class SignUpViewModel : ViewModel() {
     /**
      * Creates a new account with the given credentials in Firebase if [validateFields] is passed.
      * Stores the user data in Firestore via [storeAccountDataToFirestore].
+     * If the user account couldn't be created, it will launch a [SignUpAction.OnSignUpFailure] action.
      * @param username given username
      * @param email given user email
      * @param password given user password
@@ -87,42 +84,36 @@ class SignUpViewModel : ViewModel() {
         val _email = email.trim()
         val _password = password.trim()
 
-        // if given data is valid
-        if (validateFields(_username, _email, _password)) {
-            // initiate user account creation
-            auth.createUserWithEmailAndPassword(_email, _password)
-                .addOnCompleteListener { accountCreationTask ->
-                    // if the user account has been created successfully
-                    if (accountCreationTask.isSuccessful) {
-                        auth.currentUser?.let {
-                            storeAccountDataToFirestore(User(it.uid, username, email))
-                        }
+        if (validateFields(_username, _email, _password)) { // if given data is valid
+            repository.createUserWithEmailAndPassword(_email, _password) { isSuccess, errorMessage -> // initiate user account creation
+                if (isSuccess) { // if the user account has been created successfully
+                    repository.getCurrentUser { user ->
+                        user?.let { storeAccountDataToFirestore(User(it.uid, _username, _email)) } // store user data in Firestore
                     }
+                } else {
+                    errorMessage?.let { handleSignUpAction(SignUpAction.OnSignUpFailure(errorMessage = it)) }
                 }
-                .addOnFailureListener {
-                    handleAction(SignUpScreenAction.OnSignUpFailure(errorMessage = it.message.toString()))
-                }
+            }
         }
     }
 
     /**
-     * Stores the given [user] data into Firestore to a collection with the same name as the user id.
+     * Stores the given [user] data into Firestore. If storing succeeds, it will launch a
+     * [SignUpAction.OnSignUpSuccess] action, [SignUpAction.OnSignUpFailure] otherwise.
      * @param user data to store
      */
     private fun storeAccountDataToFirestore(user: User) {
-        firestore.collection(DBCollection.USERS)
-            .document(user.id) // adds user's data into the document with the user id as the name
-            .set(user)
-            .addOnCompleteListener {
-                handleAction(SignUpScreenAction.OnSignUpSuccess)
+        repository.storeAccountDataToFirestore(user) { isSuccess, errorMessage ->
+            if (isSuccess) {
+                handleSignUpAction(SignUpAction.OnSignUpSuccess)
+            } else {
+                errorMessage?.let { handleSignUpAction(SignUpAction.OnSignUpFailure(errorMessage = it)) }
             }
-            .addOnFailureListener {
-                handleAction(SignUpScreenAction.OnSignUpFailure(errorMessage = it.message.toString()))
-            }
+        }
     }
 
     /**
-     * Checks if the given data for registration is valid.
+     * Checks if the given data for registration is valid. If not, it will launch [SignUpAction.OnSignUpFailure].
      * @param username given username
      * @param email given email
      * @param password given password
@@ -132,34 +123,34 @@ class SignUpViewModel : ViewModel() {
         when {
             // username
             username.isEmpty() -> {
-                handleAction(SignUpScreenAction.OnSignUpFailure(errorMessage = "Username can't be empty"))
+                handleSignUpAction(SignUpAction.OnSignUpFailure(errorMessage = "Username can't be empty"))
                 return false
             }
 
             username.length < 3 -> {
-                handleAction(SignUpScreenAction.OnSignUpFailure(errorMessage = "Username is too short (min 3 characters)"))
+                handleSignUpAction(SignUpAction.OnSignUpFailure(errorMessage = "Username is too short (min 3 characters)"))
                 return false
             }
 
             // email
             email.isEmpty() -> {
-                handleAction(SignUpScreenAction.OnSignUpFailure(errorMessage = "Email can't be empty"))
+                handleSignUpAction(SignUpAction.OnSignUpFailure(errorMessage = "Email can't be empty"))
                 return false
             }
 
             !Patterns.EMAIL_ADDRESS.matcher(email).matches() -> {
-                handleAction(SignUpScreenAction.OnSignUpFailure(errorMessage = "Email is invalid"))
+                handleSignUpAction(SignUpAction.OnSignUpFailure(errorMessage = "Email is invalid"))
                 return false
             }
 
             // password
             password.isEmpty() -> {
-                handleAction(SignUpScreenAction.OnSignUpFailure(errorMessage = "Password can't be empty"))
+                handleSignUpAction(SignUpAction.OnSignUpFailure(errorMessage = "Password can't be empty"))
                 return false
             }
 
             password.length < 6 -> {
-                handleAction(SignUpScreenAction.OnSignUpFailure(errorMessage = "Password is too short (min 6 characters)"))
+                handleSignUpAction(SignUpAction.OnSignUpFailure(errorMessage = "Password is too short (min 6 characters)"))
                 return false
             }
         }

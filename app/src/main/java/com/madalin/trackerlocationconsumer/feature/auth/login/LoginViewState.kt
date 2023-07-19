@@ -1,4 +1,4 @@
-package com.madalin.trackerlocationconsumer.feature.auth
+package com.madalin.trackerlocationconsumer.feature.auth.login
 
 data class LoginViewState(
     val email: String = "",

@@ -1,4 +1,4 @@
-package com.madalin.trackerlocationconsumer.feature.auth
+package com.madalin.trackerlocationconsumer.feature.auth.signup
 
 data class SignUpViewState(
     val username: String = "",

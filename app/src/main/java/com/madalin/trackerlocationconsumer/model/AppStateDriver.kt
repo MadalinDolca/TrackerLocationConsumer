@@ -1,18 +1,12 @@
 package com.madalin.trackerlocationconsumer.model
 
-import android.util.Patterns
-import com.google.firebase.auth.ktx.auth
-import com.google.firebase.ktx.Firebase
 import com.madalin.trackerlocationconsumer.entity.Action
-import com.madalin.trackerlocationconsumer.entity.AppLoginState
 import com.madalin.trackerlocationconsumer.entity.AppState
-import com.madalin.trackerlocationconsumer.entity.LoginAction
 import com.madalin.trackerlocationconsumer.feature.tracker.TrackerAction
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asSharedFlow
-import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
@@ -39,7 +33,7 @@ class AppStateDriver {
         coroutineScope.launch {
             stateMutex.withLock { // acquire the lock to ensure exclusive access to the state // sync(mutex) if I want result checking
                 when (action) {
-                    is LoginAction -> handleLoginAction(action)
+                    //is AppLoginAction -> handleLoginAction(action)
                     is TrackerAction -> handleTrackerAction(action)
                 }
             }
@@ -47,15 +41,15 @@ class AppStateDriver {
     }
 
     /**
-     * Determines the [LoginAction] type and applies the operations.
+     * Determines the [AppLoginAction] type and applies the operations.
      */
-    private fun handleLoginAction(loginAction: LoginAction) {
+    /*private fun handleLoginAction(loginAction: AppLoginAction) {
         when (loginAction) {
             // updates the ApplicationState (if loginAction is an instance of the LoginAction.DoLogin class)
-            is LoginAction.DoLogin -> login(loginAction.email, loginAction.password)
+            is AppLoginAction.DoLogin -> {} //login(loginAction.email, loginAction.password)
 
             // logout action (type checking not necessary)
-            LoginAction.DoLogout -> stateInternal.update { oldLoginState ->
+            AppLoginAction.DoLogout -> stateInternal.update { oldLoginState ->
                 oldLoginState.copy(
                     loginState = AppLoginState(), // marked as "not logged in"
                     trackingState = emptyList(),
@@ -63,7 +57,7 @@ class AppStateDriver {
                 )
             }
 
-            is LoginAction.OnLoginSuccess -> {
+            is AppLoginAction.OnLoginSuccess -> {
                 stateInternal.update { oldLoginState ->
                     oldLoginState.copy(
                         loginState = AppLoginState( // marked as logged in and set user's name
@@ -76,65 +70,11 @@ class AppStateDriver {
                 }
             }
 
-            is LoginAction.OnLoginFailure -> {}
+            is AppLoginAction.OnLoginFailure -> {}
         }
-    }
+    }*/
 
     private fun handleTrackerAction(trackerAction: TrackerAction) {
 
-    }
-
-    fun login(email: String, password: String) {
-        val auth = Firebase.auth
-        val _email = email.trim()
-        val _password = password
-
-        // if given data is valid
-        if (validateFields(_email, _password)) {
-            auth.signInWithEmailAndPassword(_email, _password)
-                .addOnCompleteListener { signInTask ->
-                    // if the authentication was successful
-                    if (signInTask.isSuccessful) {
-                        handleAction(LoginAction.OnLoginSuccess(email = _email))
-                    }
-                }
-                .addOnFailureListener {
-                    handleAction(LoginAction.OnLoginFailure(errorMessage = it.message.toString()))
-                }
-        }
-    }
-
-    /**
-     * Checks if the given data for authentication is valid.
-     * @param email given email
-     * @param password given password
-     * @return `true` if valid, `false` otherwise
-     */
-    fun validateFields(email: String, password: String): Boolean {
-        when {
-            //email
-            email.isEmpty() -> {
-                handleAction(LoginAction.OnLoginFailure(errorMessage = "Email can't be empty"))
-                return false
-            }
-
-            !Patterns.EMAIL_ADDRESS.matcher(email).matches() -> {
-                handleAction(LoginAction.OnLoginFailure(errorMessage = "Email is invalid"))
-                return false
-            }
-
-            // password
-            password.isEmpty() -> {
-                handleAction(LoginAction.OnLoginFailure(errorMessage = "Password can't be empty"))
-                return false
-            }
-
-            password.length < 6 -> {
-                handleAction(LoginAction.OnLoginFailure(errorMessage = "Password is too short (min 6 characters)"))
-                return false
-            }
-        }
-
-        return true
     }
 }

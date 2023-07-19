@@ -27,10 +27,10 @@ import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.madalin.trackerlocationconsumer.R
-import com.madalin.trackerlocationconsumer.entity.LoginAction
-import com.madalin.trackerlocationconsumer.feature.auth.LoginScreenAction
-import com.madalin.trackerlocationconsumer.feature.auth.LoginViewModel
+import com.madalin.trackerlocationconsumer.feature.auth.login.LoginAction
+import com.madalin.trackerlocationconsumer.feature.auth.login.LoginViewModel
 import com.madalin.trackerlocationconsumer.ui.component.ErrorMessageText
+import com.madalin.trackerlocationconsumer.ui.component.ScreenTitle
 import com.madalin.trackerlocationconsumer.ui.screen.destinations.SignUpScreenDestination
 import com.madalin.trackerlocationconsumer.ui.screen.destinations.TrackerScreenDestination
 import com.madalin.trackerlocationconsumer.ui.theme.Purple40
@@ -55,23 +55,18 @@ fun LoginScreen(
         verticalArrangement = Arrangement.spacedBy(10.dp),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        Text(
-            text = stringResource(R.string.login),
-            modifier = Modifier.padding(bottom = 10.dp),
-            fontSize = 40.sp
-        )
-
+        ScreenTitle(title = stringResource(R.string.login))
         ErrorMessageText(errorMessage = viewState.errorMessage)
         EmailTextField(
-            handleAction = { email -> loginViewModel.handleLoginScreenAction(LoginScreenAction.UpdateEmailTextField(email)) },
+            handleAction = { email -> loginViewModel.handleLoginAction(LoginAction.UpdateEmailTextField(email)) },
             email = viewState.email
         )
         PasswordTextField(
-            handleAction = { password -> loginViewModel.handleLoginScreenAction(LoginScreenAction.UpdatePasswordTextField(password)) },
+            handleAction = { password -> loginViewModel.handleLoginAction(LoginAction.UpdatePasswordTextField(password)) },
             password = viewState.password
         )
         LoginButton(
-            login = { loginViewModel.handleAction(LoginAction.DoLogin(email = viewState.email, password = viewState.password)) },
+            login = { loginViewModel.handleLoginAction(LoginAction.DoLogin(email = viewState.email, password = viewState.password)) },
             isLoggedIn = viewState.isLoggedIn,
             navToTracker = { navigator.navigate(TrackerScreenDestination) }
         )
