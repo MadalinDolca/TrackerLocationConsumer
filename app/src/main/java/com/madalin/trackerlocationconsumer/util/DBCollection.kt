@@ -5,4 +5,5 @@ package com.madalin.trackerlocationconsumer.util
  */
 object DBCollection {
     const val USERS = "users"
+    const val TARGETS = "targets"
 }

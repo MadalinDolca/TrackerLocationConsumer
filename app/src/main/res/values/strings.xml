@@ -10,4 +10,13 @@
     <string name="my_location">My location</string>
     <string name="bring_me_to_target">Bring me to target</string>
     <string name="stop_bringing">Stop bringing</string>
+    <string name="cancel">Cancel</string>
+    <string name="add_target">Add target</string>
+    <string name="add_target_id">Add target ID</string>
+    <string name="youre_tracking_this">You\'re tracking this</string>
+    <string name="tracking_is_off">Tracking is off</string>
+    <string name="tracking_is_on">Tracking is on</string>
+    <string name="show_targets">Show targets</string>
+    <string name="tracking_targets">Tracking targets</string>
+    <string name="close">Close</string>
 </resources>

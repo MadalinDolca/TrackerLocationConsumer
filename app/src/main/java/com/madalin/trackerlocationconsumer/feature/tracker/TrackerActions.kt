@@ -1,36 +1,35 @@
 package com.madalin.trackerlocationconsumer.feature.tracker
 
+import android.content.Context
 import com.madalin.trackerlocationconsumer.entity.Action
-import com.madalin.trackerlocationconsumer.entity.TargetCoordinates
 
 sealed class TrackerAction : Action {
-    data class AddTarget(
-        val targetName: String,
-        val mqttUrl: String,
-        val username: String,
-        val password: String
+    data class ToggleAddTargetDialog(
+        val isAddTargetDialogShown: Boolean
     ) : TrackerAction()
 
-    data class UpdateTarget(
-        val id: String,
-        val targetName: String,
-        val mqttUrl: String,
-        val username: String,
-        val password: String
+    data class ToggleShowTargetsDialog(
+        val isTargetsDialogShown: Boolean
+    ) : TrackerAction()
+
+    data class AddTarget(
+        val targetId: String
     ) : TrackerAction()
 
     data class DeleteTarget(
-        val id: String
+        val targetId: String
     ) : TrackerAction()
 
     data class CreatePath(
-        val userCoordinates: TargetCoordinates,
-        val targetCoordinates: TargetCoordinates
+        val targetId: String
     ) : TrackerAction()
 
-    object StartTracking : TrackerAction()
-    object StopTracking : TrackerAction()
+    object StartTrackingTargets : TrackerAction()
+    object StopTrackingTargets : TrackerAction()
 
-    object StartBringToTarget : TrackerAction()
+    data class StartBringToTarget(
+        val context: Context
+    ) : TrackerAction()
+
     object StopBringToTarget : TrackerAction()
 }

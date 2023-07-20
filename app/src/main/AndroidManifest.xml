@@ -2,8 +2,14 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:tools="http://schemas.android.com/tools">
 
+    <!-- Internet access permission -->
     <uses-permission android:name="android.permission.INTERNET" />
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+
+    <!-- Location access permissions -->
+    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" /> <!-- approximate -->
+    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" /> <!-- precise -->
+    <uses-permission android:name="android.permission.ACCESS_BACKGROUND_LOCATION" /> <!-- background location access on Android 10 (API level 29) -->
 
     <application
         android:name=".ApplicationClass"

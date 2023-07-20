@@ -1,12 +1,17 @@
 package com.madalin.trackerlocationconsumer.model
 
 import com.madalin.trackerlocationconsumer.entity.Action
+import com.madalin.trackerlocationconsumer.entity.AppLoginState
 import com.madalin.trackerlocationconsumer.entity.AppState
+import com.madalin.trackerlocationconsumer.feature.auth.login.LoginAction
 import com.madalin.trackerlocationconsumer.feature.tracker.TrackerAction
+import com.madalin.trackerlocationconsumer.repository.FirebaseRepository
+import com.madalin.trackerlocationconsumer.repository.FirebaseRepositoryImpl
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asSharedFlow
+import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
@@ -16,7 +21,9 @@ import kotlinx.coroutines.sync.withLock
  * and the underlying state of the application.
  * Used in ViewModels.
  */
-class AppStateDriver {
+class AppStateDriver(
+    val repository: FirebaseRepositoryImpl
+) {
     private val stateInternal = MutableStateFlow(AppState()) // the overall state of the application
     private val coroutineScope = CoroutineScope(Dispatchers.Default) // for coroutines execution in the background thread pool
     private val stateMutex = Mutex() // mutual exclusion for coroutines (locked and unlocked states)
@@ -33,7 +40,7 @@ class AppStateDriver {
         coroutineScope.launch {
             stateMutex.withLock { // acquire the lock to ensure exclusive access to the state // sync(mutex) if I want result checking
                 when (action) {
-                    //is AppLoginAction -> handleLoginAction(action)
+                    is LoginAction -> handleLoginAction(action)
                     is TrackerAction -> handleTrackerAction(action)
                 }
             }
@@ -41,38 +48,26 @@ class AppStateDriver {
     }
 
     /**
-     * Determines the [AppLoginAction] type and applies the operations.
+     * Determines the [LoginAction] type and applies the operations.
      */
-    /*private fun handleLoginAction(loginAction: AppLoginAction) {
+    private fun handleLoginAction(loginAction: LoginAction) {
         when (loginAction) {
-            // updates the ApplicationState (if loginAction is an instance of the LoginAction.DoLogin class)
-            is AppLoginAction.DoLogin -> {} //login(loginAction.email, loginAction.password)
-
-            // logout action (type checking not necessary)
-            AppLoginAction.DoLogout -> stateInternal.update { oldLoginState ->
-                oldLoginState.copy(
-                    loginState = AppLoginState(), // marked as "not logged in"
-                    trackingState = emptyList(),
-                    coordinatesState = emptyList()
-                )
-            }
-
-            is AppLoginAction.OnLoginSuccess -> {
-                stateInternal.update { oldLoginState ->
-                    oldLoginState.copy(
-                        loginState = AppLoginState( // marked as logged in and set user's name
-                            isLoggedIn = true,
-                            email = loginAction.email
-                        ),
-                        trackingState = emptyList(),
-                        coordinatesState = emptyList()
+            LoginAction.DoLogout -> {
+                repository.signOut()
+                stateInternal.update {
+                    it.copy(
+                        loginState = AppLoginState(
+                            isLoggedIn = false,
+                            username = "",
+                            email = ""
+                        )
                     )
                 }
             }
 
-            is AppLoginAction.OnLoginFailure -> {}
+            else -> {}
         }
-    }*/
+    }
 
     private fun handleTrackerAction(trackerAction: TrackerAction) {
 

@@ -19,7 +19,7 @@ class LoginViewModel(
     val viewState = viewStateInternal.asStateFlow() // to read the state of the view
 
     init {
-        // continuously collect the states
+        // continuously collect the states of app state
         viewModelScope.launch {
             stateDriver.state.collect { applicationState ->
                 applicationState.reduce()
@@ -33,7 +33,7 @@ class LoginViewModel(
     private fun AppState.reduce() {
         viewStateInternal.update { oldLoginViewState ->
             oldLoginViewState.copy(
-                isLoggedIn = this.loginState.isLoggedIn, // logged in status
+                isLoggedIn = this.loginState.isLoggedIn, // LoginVM's state gets the value of App state
                 errorMessage = this.loginState.lastError // error message
             )
         }
