@@ -16,6 +16,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.stringResource
 import com.google.android.gms.maps.model.BitmapDescriptorFactory
 import com.google.android.gms.maps.model.CameraPosition
@@ -27,6 +28,7 @@ import com.google.maps.android.compose.MapType
 import com.google.maps.android.compose.MapUiSettings
 import com.google.maps.android.compose.Marker
 import com.google.maps.android.compose.MarkerState
+import com.google.maps.android.compose.Polyline
 import com.madalin.trackerlocationconsumer.R
 import com.madalin.trackerlocationconsumer.feature.tracker.TrackerAction
 import com.madalin.trackerlocationconsumer.feature.tracker.TrackerViewModel
@@ -52,6 +54,7 @@ fun TrackerScreen(
             selfPosition = viewState.selfPosition,
             targetPosition = viewState.targetPosition,
             isBringToTargetOn = viewState.isBringToTargetOn,
+            zoomValue = viewState.zoomValue,
             properties = properties,
             uiSettings = uiSettings
         )
@@ -75,8 +78,8 @@ fun TrackerScreen(
             if (viewState.isTracking) {
                 BringToTargetButton(
                     isBringToTargetOn = viewState.isBringToTargetOn,
-                    onStart = { },
-                    onStop = { }
+                    onStart = { trackerViewModel.handleTrackerAction(TrackerAction.StartBringToTarget) },
+                    onStop = { trackerViewModel.handleTrackerAction(TrackerAction.StopBringToTarget) }
                 )
             }
         }
@@ -88,29 +91,36 @@ fun TrackerMap(
     cameraPosition: LatLng,
     selfPosition: LatLng,
     targetPosition: LatLng,
+    zoomValue: Float,
     isBringToTargetOn: Boolean,
     properties: MapProperties,
     uiSettings: MapUiSettings
 ) {
     GoogleMap(
         //modifier = Modifier.matchParentSize(),
-        cameraPositionState = CameraPositionState(CameraPosition.fromLatLngZoom(cameraPosition, 15f)),
+        cameraPositionState = CameraPositionState(CameraPosition.fromLatLngZoom(cameraPosition, zoomValue)),
         properties = properties,
         uiSettings = uiSettings
     ) {
+        // target marker
+        Marker(
+            state = MarkerState(position = targetPosition),
+            title = "Target",
+            snippet = "marker snippet"
+        )
+
+        // if "Bring to target is on" it shows the self marker and a line to the target
         if (isBringToTargetOn) {
             Marker(
                 state = MarkerState(position = selfPosition),
                 title = stringResource(R.string.my_location),
                 icon = BitmapDescriptorFactory.defaultMarker(BitmapDescriptorFactory.HUE_CYAN)
             )
+            Polyline(
+                points = listOf(selfPosition, targetPosition),
+                color = Color.Red
+            )
         }
-
-        Marker(
-            state = MarkerState(position = targetPosition),
-            title = "Target",
-            snippet = "marker snippet"
-        )
     }
 }
 
