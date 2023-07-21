@@ -8,7 +8,7 @@ data class TrackerViewState(
     val cameraPosition: LatLng = LatLng(47.656203, 23.571124),
     val selfPosition: LatLng = LatLng(0.0, 0.0),
     val targetsList: List<TrackingTarget> = emptyList(),
-    val isBringToTargetOn: Boolean = false,
+    val isRouteToTargetOn: Boolean = false,
     val selectedTargetId: String? = null,
     val zoomValue: Float = 15f,
     val isAddTargetDialogShown: Boolean = false,

@@ -1,8 +1,6 @@
 package com.madalin.trackerlocationconsumer.ui.screen
 
 import android.Manifest
-import androidx.activity.compose.rememberLauncherForActivityResult
-import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -11,6 +9,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -76,7 +75,7 @@ import com.ramcosta.composedestinations.navigation.DestinationsNavigator
 import org.koin.androidx.compose.getViewModel
 
 @OptIn(ExperimentalPermissionsApi::class)
-@RootNavGraph(start = true)
+//@RootNavGraph(start = true)
 @Destination
 @Composable
 fun TrackerScreen(
@@ -88,22 +87,19 @@ fun TrackerScreen(
 
     val context = LocalContext.current.applicationContext
     val permissionState = rememberPermissionState(Manifest.permission.ACCESS_FINE_LOCATION) // location permission state
-    val launcher = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { wasGranted ->
-        if (wasGranted) { // if permission was granted, launch the action
-            trackerViewModel.handleTrackerAction(TrackerAction.StartBringToTarget(context))
-        } else {
-            // permission denied
-        }
-    }
+
+    println("sus")
 
     Box(modifier = Modifier.fillMaxSize()) {
         TrackerMap(
             //cameraPosition = viewState.cameraPosition,
             selfPosition = viewState.selfPosition,
             targetsList = viewState.targetsList,
-            isBringToTargetOn = viewState.isBringToTargetOn,
+            isRouteToTargetOn = viewState.isRouteToTargetOn,
             zoomValue = zoomValue //viewState.zoomValue,
         )
+
+        println("box")
 
         ButtonsColumn(
             onAddTargetClick = { trackerViewModel.handleTrackerAction(TrackerAction.ToggleAddTargetDialog(true)) },
@@ -114,38 +110,35 @@ fun TrackerScreen(
             }
         )
 
-        // show "Add target" dialog when true
-        if (viewState.isAddTargetDialogShown) {
-            AddTargetDialog(
-                title = stringResource(R.string.add_target_id),
-                onConfirm = { targetId -> // add target by ID and hide dialog
-                    trackerViewModel.handleTrackerAction(TrackerAction.AddTarget(targetId))
-                    trackerViewModel.handleTrackerAction(TrackerAction.ToggleAddTargetDialog(false))
-                },
-                onCancel = { trackerViewModel.handleTrackerAction(TrackerAction.ToggleAddTargetDialog(false)) }
-            )
-        }
+        AddTargetDialog(
+            isAddTargetDialogShown = viewState.isAddTargetDialogShown, // show "Add target" dialog when true
+            title = stringResource(R.string.add_target_id),
+            onConfirm = { targetId -> // add target by ID and hide dialog
+                trackerViewModel.handleTrackerAction(TrackerAction.AddTarget(targetId))
+                trackerViewModel.handleTrackerAction(TrackerAction.ToggleAddTargetDialog(false))
+            },
+            onCancel = { trackerViewModel.handleTrackerAction(TrackerAction.ToggleAddTargetDialog(false)) }
+        )
 
-        // show "Tracking targets" dialog when true
-        if (viewState.isTargetsDialogShown) {
-            TargetsDialog(
-                targetsList = viewState.targetsList,
-                onBringToTargetClick = { },
-                onShowTargetPathClick = { },
-                onDeleteTargetClick = { targetId -> trackerViewModel.handleTrackerAction(TrackerAction.DeleteTarget(targetId)) },
-                onClose = { trackerViewModel.handleTrackerAction(TrackerAction.ToggleShowTargetsDialog(false)) }
-            )
-        }
+        TargetsDialog(
+            isTargetsDialogShown = viewState.isTargetsDialogShown, // show "Targets" dialog when true
+            targetsList = viewState.targetsList,
+            onShowTargetPathClick = { },
+            onDeleteTargetClick = { targetId -> trackerViewModel.handleTrackerAction(TrackerAction.DeleteTarget(targetId)) },
+            onClose = { trackerViewModel.handleTrackerAction(TrackerAction.ToggleShowTargetsDialog(false)) },
+            isRouteToTargetOn = viewState.isRouteToTargetOn,
+            permissionState = permissionState,
+            onStartRouteToTarget = { targetCoordinates -> trackerViewModel.handleTrackerAction(TrackerAction.StartRouteToTarget(context, targetCoordinates)) },
+            onStopRouteToTarget = { trackerViewModel.handleTrackerAction(TrackerAction.StopRouteToTarget) }
+        )
 
-        // show "Bring to target" button when tracking in on
-        if (viewState.isTracking) {
-            BringToTargetButton(
-                isBringToTargetOn = viewState.isBringToTargetOn,
-                permissionState = permissionState,
-                onStart = { trackerViewModel.handleTrackerAction(TrackerAction.StartBringToTarget(context)) },
-                onStop = { trackerViewModel.handleTrackerAction(TrackerAction.StopBringToTarget) }
-            )
-        }
+        /*BringToTargetButton(
+            isTracking = viewState.isTracking, // show "Bring to target" button when tracking in on
+            isBringToTargetOn = viewState.isBringToTargetOn,
+            permissionState = permissionState,
+            onStart = { trackerViewModel.handleTrackerAction(TrackerAction.StartBringToTarget(context)) },
+            onStop = { trackerViewModel.handleTrackerAction(TrackerAction.StopBringToTarget) }
+        )*/
 
         /*if (permissionState.permission == Permission) {
             // Permission denied, show message and redirect to settings app on click
@@ -160,8 +153,8 @@ fun TrackerScreen(
             }
         }*/
 
+        // start/stop tracking switch
         Box(modifier = Modifier.align(Alignment.BottomCenter)) {
-            // start/stop tracking switch
             ToggleTrackingSwitch(
                 isTracking = viewState.isTracking,
                 startTracking = { trackerViewModel.handleTrackerAction(TrackerAction.StartTrackingTargets) },
@@ -177,7 +170,7 @@ fun TrackerMap(
     selfPosition: LatLng,
     targetsList: List<TrackingTarget>,
     zoomValue: Float,
-    isBringToTargetOn: Boolean
+    isRouteToTargetOn: Boolean
 ) {
     val uiSettings by remember { mutableStateOf(MapUiSettings()) }
     val properties by remember { mutableStateOf(MapProperties(mapType = MapType.NORMAL)) }
@@ -199,8 +192,8 @@ fun TrackerMap(
             }
         }
 
-        // if "Bring to target is on" it shows the self marker and a line to the target
-        if (isBringToTargetOn) {
+        // if "Route to target" is on it shows the self marker and a line to the target
+        if (isRouteToTargetOn) {
             Marker(
                 state = MarkerState(position = selfPosition),
                 title = stringResource(R.string.my_location),
@@ -252,84 +245,103 @@ fun ButtonsColumn(
 
 @Composable
 fun AddTargetDialog(
+    isAddTargetDialogShown: Boolean,
     title: String,
     onConfirm: (String) -> Unit,
     onCancel: () -> Unit
 ) {
-    var textFieldValue by remember { mutableStateOf(TextFieldValue()) }
+    if (isAddTargetDialogShown) {
+        var textFieldValue by remember { mutableStateOf(TextFieldValue()) }
 
-    AlertDialog(
-        onDismissRequest = onCancel, // hide dialog when clicked outside
-        title = { Text(text = title) },
-        text = {
-            TextField(
-                value = textFieldValue,
-                onValueChange = { textFieldValue = it },
-                singleLine = true,
-                textStyle = TextStyle(fontSize = 17.sp)
-            )
-        },
-        confirmButton = {
-            Button(onClick = { onConfirm(textFieldValue.text) })
-            { Text(text = stringResource(R.string.add_target)) }
-        },
-        dismissButton = {
-            Button(onClick = onCancel)
-            { Text(text = stringResource(R.string.cancel)) }
-        }
-    )
+        AlertDialog(
+            onDismissRequest = onCancel, // hide dialog when clicked outside
+            title = { Text(text = title) },
+            text = {
+                TextField(
+                    value = textFieldValue,
+                    onValueChange = { textFieldValue = it },
+                    singleLine = true,
+                    textStyle = TextStyle(fontSize = 17.sp)
+                )
+            },
+            confirmButton = {
+                Button(onClick = { onConfirm(textFieldValue.text) })
+                { Text(text = stringResource(R.string.add_target)) }
+            },
+            dismissButton = {
+                Button(onClick = onCancel)
+                { Text(text = stringResource(R.string.cancel)) }
+            }
+        )
+    }
 }
 
+@OptIn(ExperimentalPermissionsApi::class)
 @Composable
 fun TargetsDialog(
+    isTargetsDialogShown: Boolean,
     targetsList: List<TrackingTarget>,
-    onBringToTargetClick: () -> Unit,
     onShowTargetPathClick: () -> Unit,
     onDeleteTargetClick: (String) -> Unit,
-    onClose: () -> Unit
+    onClose: () -> Unit,
+    isRouteToTargetOn: Boolean,
+    permissionState: PermissionState,
+    onStartRouteToTarget: (LatLng) -> Unit,
+    onStopRouteToTarget: () -> Unit
 ) {
-    Dialog(onDismissRequest = { onClose() }) {
-        Surface(shape = MaterialTheme.shapes.medium) {
-            Column(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalAlignment = Alignment.CenterHorizontally
-            ) {
-                Text(
-                    modifier = Modifier.padding(vertical = 10.dp),
-                    text = stringResource(R.string.tracking_targets),
-                    fontSize = 25.sp
-                )
-                LazyColumn(
+    if (isTargetsDialogShown) {
+        Dialog(onDismissRequest = { onClose() }) {
+            Surface(shape = MaterialTheme.shapes.medium) {
+                Column(
                     modifier = Modifier.fillMaxWidth(),
-                    contentPadding = PaddingValues(8.dp),
-                    verticalArrangement = Arrangement.spacedBy(5.dp)
+                    horizontalAlignment = Alignment.CenterHorizontally
                 ) {
-                    items(targetsList) { target ->
-                        TargetItem(
-                            target = target,
-                            onBringToTargetClick = onBringToTargetClick,
-                            onShowTargetPathClick = onShowTargetPathClick,
-                            onDeleteTargetClick = { onDeleteTargetClick(target.id) }
-                        )
+                    Text(
+                        modifier = Modifier.padding(vertical = 10.dp),
+                        text = stringResource(R.string.tracking_targets),
+                        fontSize = 25.sp
+                    )
+                    LazyColumn(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .heightIn(0.dp, 250.dp),
+                        contentPadding = PaddingValues(8.dp),
+                        verticalArrangement = Arrangement.spacedBy(5.dp)
+                    ) {
+                        items(targetsList) { target ->
+                            TargetItem(
+                                target = target,
+                                onShowTargetPathClick = onShowTargetPathClick,
+                                onDeleteTargetClick = { onDeleteTargetClick(target.id) },
+                                isRouteToTargetOn = isRouteToTargetOn,
+                                permissionState = permissionState,
+                                onStartRouteToTarget = onStartRouteToTarget,
+                                onStopRouteToTarget = onStopRouteToTarget
+                            )
+                        }
                     }
-                }
-                Button(
-                    onClick = onClose,
-                    modifier = Modifier.padding(bottom = 10.dp)
-                ) {
-                    Text(text = stringResource(R.string.close))
+                    Button(
+                        onClick = onClose,
+                        modifier = Modifier.padding(vertical = 10.dp)
+                    ) {
+                        Text(text = stringResource(R.string.close))
+                    }
                 }
             }
         }
     }
 }
 
+@OptIn(ExperimentalPermissionsApi::class)
 @Composable
 fun TargetItem(
     target: TrackingTarget,
-    onBringToTargetClick: () -> Unit,
     onShowTargetPathClick: () -> Unit,
-    onDeleteTargetClick: () -> Unit
+    onDeleteTargetClick: () -> Unit,
+    isRouteToTargetOn: Boolean,
+    permissionState: PermissionState,
+    onStartRouteToTarget: (LatLng) -> Unit,
+    onStopRouteToTarget: () -> Unit
 ) {
     Surface(
         modifier = Modifier.fillMaxWidth(),
@@ -356,10 +368,20 @@ fun TargetItem(
 
             Spacer(modifier = Modifier.weight(1f))
 
-            // bring to target button
+            // route to target button
             RoundedIconButton(
                 icon = Icons.Rounded.Send,
-                onClick = { onBringToTargetClick() },
+                onClick = {
+                    if (isRouteToTargetOn) { // if "Route" is on, it disables it
+                        onStopRouteToTarget()
+                    } else {
+                        if (permissionState.status == PermissionStatus.Granted) { // if permission is granted
+                            target.currentPosition?.let { onStartRouteToTarget(it) } // starts routing
+                        } else { // request permission
+                            permissionState.launchPermissionRequest()
+                        }
+                    }
+                },
                 size = 35.dp,
                 backgroundColor = PastelGreen
             )
@@ -405,25 +427,28 @@ fun ToggleTrackingSwitch(isTracking: Boolean, startTracking: () -> Unit, stopTra
 @OptIn(ExperimentalPermissionsApi::class)
 @Composable
 fun BringToTargetButton(
+    isTracking: Boolean,
     isBringToTargetOn: Boolean,
     permissionState: PermissionState,
     onStart: () -> Unit,
     onStop: () -> Unit
 ) {
-    Button(onClick = {
-        if (isBringToTargetOn) { // if "Bring" is on, it disables it
-            onStop()
-        } else {
-            if (permissionState.status == PermissionStatus.Granted) {
-                onStart()
-            } else { // request permission
-                permissionState.launchPermissionRequest()
+    if (isTracking) {
+        Button(onClick = {
+            if (isBringToTargetOn) { // if "Bring" is on, it disables it
+                onStop()
+            } else {
+                if (permissionState.status == PermissionStatus.Granted) {
+                    onStart()
+                } else { // request permission
+                    permissionState.launchPermissionRequest()
+                }
             }
+        }) {
+            Text(
+                text = if (isBringToTargetOn) stringResource(R.string.stop_bringing)
+                else stringResource(R.string.bring_me_to_target)
+            )
         }
-    }) {
-        Text(
-            text = if (isBringToTargetOn) stringResource(R.string.stop_bringing)
-            else stringResource(R.string.bring_me_to_target)
-        )
     }
 }

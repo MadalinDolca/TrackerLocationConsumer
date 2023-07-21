@@ -1,7 +1,10 @@
 package com.madalin.trackerlocationconsumer.feature.tracker
 
 import android.annotation.SuppressLint
+import android.content.ActivityNotFoundException
 import android.content.Context
+import android.content.Intent
+import android.net.Uri
 import android.os.Looper
 import android.util.Log
 import androidx.lifecycle.ViewModel
@@ -71,20 +74,20 @@ class TrackerViewModel(
                         it.copy(isAddTargetDialogShown = trackerAction.isAddTargetDialogShown)
                     }
 
-                    is TrackerAction.AddTarget -> addTarget(trackerAction.targetId)
-
-                    is TrackerAction.DeleteTarget -> deleteTarget(trackerAction.targetId)
-
                     is TrackerAction.ToggleShowTargetsDialog -> viewStateInternal.update {
                         it.copy(isTargetsDialogShown = trackerAction.isTargetsDialogShown)
                     }
+
+                    is TrackerAction.AddTarget -> addTarget(trackerAction.targetId)
+
+                    is TrackerAction.DeleteTarget -> deleteTarget(trackerAction.targetId)
 
                     is TrackerAction.CreatePath -> TODO()
 
                     TrackerAction.StartTrackingTargets -> startTrackingTargets()
                     TrackerAction.StopTrackingTargets -> stopTrackingTargets()
-                    is TrackerAction.StartBringToTarget -> startBringToTarget(trackerAction.context)
-                    TrackerAction.StopBringToTarget -> stopBringToTarget()
+                    is TrackerAction.StartRouteToTarget -> showRouteToTarget(trackerAction.context, trackerAction.targetCoordinates)
+                    TrackerAction.StopRouteToTarget -> stopUpdateSelfPosition()
                 }
             }
         }
@@ -167,7 +170,7 @@ class TrackerViewModel(
     /**
      * Enables the tracking state, connects to the broker, subscribes to [Topic.tracker_location],
      * receives the messages, filters them by the tracked targets IDs and updates the targets via
-     * [updateSelectedTargetPosition].
+     * [updateTargetPosition].
      */
     private fun startTrackingTargets() {
         viewStateInternal.update { it.copy(isTracking = true) }
@@ -186,22 +189,32 @@ class TrackerViewModel(
 
                 if (trackedTargetId != -1) {
                     Log.d("TrackerViewModel", "Received: $mqttMessage")
-                    updateSelectedTargetPosition(mqttMessage.clientId, mqttMessage.latitude, mqttMessage.longitude)
+                    updateTargetPosition(mqttMessage.clientId, mqttMessage.latitude, mqttMessage.longitude)
                 }
             }
         }
     }
 
-    private fun updateSelectedTargetPosition(id: String, latitude: Double, longitude: Double) {
-        val currentState = viewStateInternal.value
+    private fun updateTargetPosition(targetId: String, latitude: Double, longitude: Double) {
+        /*val currentState = viewStateInternal.value
         val updatedTargets = currentState.targetsList.toMutableList()
-        val targetIndex = updatedTargets.indexOfFirst { it.id == id }
+        val targetIndex = updatedTargets.indexOfFirst { it.id == targetId }
 
         if (targetIndex != -1) {
             updatedTargets[targetIndex].currentPosition = LatLng(latitude, longitude)
             viewStateInternal.value = currentState.copy(targetsList = updatedTargets)
             //viewStateInternal.update { it.copy(targetsList = updatedTargets) }
             Log.d("TrackerViewModel.updateSelectedTargetPosition()", "Update: ${updatedTargets[targetIndex]}")
+        }*/
+
+        viewStateInternal.update { currentViewState ->
+            val updatedTargetsList = currentViewState.targetsList.toMutableList()
+            val updationIndex = updatedTargetsList.indexOfFirst { it.id == targetId }
+
+            updatedTargetsList[updationIndex].currentPosition = LatLng(latitude, longitude)
+            Log.d("TrackerViewModel.updateSelectedTargetPosition()", "Update: ${updatedTargetsList[updationIndex]}")
+
+            currentViewState.copy(targetsList = updatedTargetsList)
         }
 
         /*viewStateInternal.update { currentState ->
@@ -217,6 +230,9 @@ class TrackerViewModel(
         }*/
     }
 
+    /**
+     * Changes the tracking state to `false` and disconnects the [mqttClient] from the broker.
+     */
     private fun stopTrackingTargets() {
         viewStateInternal.update { it.copy(isTracking = false) }
 
@@ -225,12 +241,28 @@ class TrackerViewModel(
         }
     }
 
-    private fun showTrackingTargets() {
+    /**
+     * Calls [startUpdateSelfPosition] to obtain self coordinates and calls [openGoogleMapsForRoute]
+     * to show a route to the target on Google Maps.
+     * @param context global Application object of the current process
+     * @param targetCoordinates target coordinates
+     */
+    private fun showRouteToTarget(context: Context, targetCoordinates: LatLng) {
+        startUpdateSelfPosition(context)
 
+        val origin = "${viewStateInternal.value.selfPosition.latitude},${viewStateInternal.value.selfPosition.longitude}"
+        val destination = "${targetCoordinates.latitude},${targetCoordinates.longitude}"
+
+        openGoogleMapsForRoute(origin, destination, context)
     }
 
-    private fun startBringToTarget(context: Context) {
-        viewStateInternal.update { it.copy(isBringToTargetOn = true) }
+    /**
+     * Starts receiving the user location via [startLocationUpdates] and updates the states of
+     * `isRouteToTargetOn` and `selfPosition`.
+     * @param context global Application object of the current process
+     */
+    private fun startUpdateSelfPosition(context: Context) {
+        viewStateInternal.update { it.copy(isRouteToTargetOn = true) }
         fusedLocationClient = LocationServices.getFusedLocationProviderClient(context)
 
         // behavior to handle the received location updates
@@ -238,7 +270,7 @@ class TrackerViewModel(
             override fun onLocationResult(locationResult: LocationResult) { // most recent location information
                 locationResult.lastLocation?.let { location ->
                     viewStateInternal.update { it.copy(selfPosition = LatLng(location.latitude, location.longitude)) }
-                    Log.d("TrackerViewModel.startBringToTarget()", "Self coordinates: ${location.latitude}, ${location.longitude}")
+                    Log.d("TrackerViewModel.startUpdateSelfPosition()", "Self coordinates: ${location.latitude}, ${location.longitude}")
                 }
             }
         }
@@ -246,8 +278,8 @@ class TrackerViewModel(
         startLocationUpdates()
     }
 
-    private fun stopBringToTarget() {
-        viewStateInternal.update { it.copy(isBringToTargetOn = false) }
+    private fun stopUpdateSelfPosition() {
+        viewStateInternal.update { it.copy(isRouteToTargetOn = false) }
         stopLocationUpdates()
     }
 
@@ -265,5 +297,26 @@ class TrackerViewModel(
      */
     private fun stopLocationUpdates() {
         locationCallback?.let { fusedLocationClient.removeLocationUpdates(it) }
+    }
+
+    private fun openGoogleMapsForRoute(source: String, destination: String, context: Context) {
+        try {
+            //val mapsUri = Uri.parse("https://www.google.com/maps/dir/$source/$destination")
+            val mapsUri = Uri.parse("https://www.google.com/maps/dir/?api=1&origin=$source&destination=$destination&travelmode=driving")
+            val openMapsIntent = Intent(Intent.ACTION_VIEW, mapsUri)
+
+            openMapsIntent.setPackage("com.google.android.apps.maps") // maps package name
+            openMapsIntent.flags = Intent.FLAG_ACTIVITY_NEW_TASK
+
+            context.startActivity(openMapsIntent)
+        } catch (e: ActivityNotFoundException) {
+            // when Google Maps is not installed on the device it will open Google Play to download it
+            val playStoreUri = Uri.parse("https://play.google.com/store/apps/details?id=com.google.android.apps.maps")
+            val openPlayStoreIntent = Intent(Intent.ACTION_VIEW, playStoreUri) // initializing intent with action view
+
+            openPlayStoreIntent.flags = Intent.FLAG_ACTIVITY_NEW_TASK
+
+            context.startActivity(openPlayStoreIntent)
+        }
     }
 }

@@ -1,6 +1,7 @@
 package com.madalin.trackerlocationconsumer.feature.tracker
 
 import android.content.Context
+import com.google.android.gms.maps.model.LatLng
 import com.madalin.trackerlocationconsumer.entity.Action
 
 sealed class TrackerAction : Action {
@@ -27,9 +28,10 @@ sealed class TrackerAction : Action {
     object StartTrackingTargets : TrackerAction()
     object StopTrackingTargets : TrackerAction()
 
-    data class StartBringToTarget(
-        val context: Context
+    data class StartRouteToTarget(
+        val context: Context,
+        val targetCoordinates: LatLng
     ) : TrackerAction()
 
-    object StopBringToTarget : TrackerAction()
+    object StopRouteToTarget : TrackerAction()
 }
