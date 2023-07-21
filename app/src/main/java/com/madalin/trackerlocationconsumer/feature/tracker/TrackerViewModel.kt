@@ -70,6 +70,11 @@ class TrackerViewModel(
         viewModelScope.launch {
             stateMutex.withLock {
                 when (trackerAction) {
+                    TrackerAction.StartTrackingTargets -> startTrackingTargets()
+                    TrackerAction.StopTrackingTargets -> stopTrackingTargets()
+                    is TrackerAction.StartShowingSelfLocation -> startUpdateSelfPosition(trackerAction.context)
+                    TrackerAction.StopShowingSelfLocation -> stopUpdateSelfPosition()
+
                     is TrackerAction.ToggleAddTargetDialog -> viewStateInternal.update {
                         it.copy(isAddTargetDialogShown = trackerAction.isAddTargetDialogShown)
                     }
@@ -79,46 +84,59 @@ class TrackerViewModel(
                     }
 
                     is TrackerAction.AddTarget -> addTarget(trackerAction.targetId)
-
                     is TrackerAction.DeleteTarget -> deleteTarget(trackerAction.targetId)
+                    is TrackerAction.ShowRouteToTarget -> showRouteToTarget(trackerAction.context, trackerAction.targetCoordinates)
 
-                    is TrackerAction.CreatePath -> TODO()
+                    is TrackerAction.ShowTargetPath -> viewStateInternal.update {
+                        it.copy(
+                            selectedTargetPathId = trackerAction.targetId,
+                            isShowTargetPath = true
+                        )
+                    }
 
-                    TrackerAction.StartTrackingTargets -> startTrackingTargets()
-                    TrackerAction.StopTrackingTargets -> stopTrackingTargets()
-                    is TrackerAction.StartRouteToTarget -> showRouteToTarget(trackerAction.context, trackerAction.targetCoordinates)
-                    TrackerAction.StopRouteToTarget -> stopUpdateSelfPosition()
+                    TrackerAction.HideTargetPath -> viewStateInternal.update {
+                        it.copy(
+                            selectedTargetPathId = "",
+                            isShowTargetPath = false
+                        )
+                    }
                 }
             }
         }
     }
 
     /**
-     * Adds a new [TrackingTarget] to the state list and store it to Firestore.
+     * Adds a new [TrackingTarget] to the state list and store it to Firestore if it doesn't
+     * already exist.
      * @param targetId the target's ID to add
      */
     private fun addTarget(targetId: String) {
-        val newTrackingTarget = TrackingTarget(targetId.trim())
+        val addIndex = viewStateInternal.value.targetsList.indexOfFirst { it.id == targetId }
 
-        viewStateInternal.update { currentState ->
-            val updatedTargetsList = currentState.targetsList.toMutableList()
-            updatedTargetsList.add(newTrackingTarget)
-            currentState.copy(targetsList = updatedTargetsList) // sets the new list
-        }
+        // if it hasn't been already added
+        if (addIndex == -1) {
+            val newTrackingTarget = TrackingTarget(targetId.trim())
 
-        // saves the target into Firestore
-        repository.getCurrentUser { user ->
-            if (user != null) {
-                repository.addTarget(user.uid, newTrackingTarget) { isSuccess, errorMessage ->
-                    if (isSuccess) Log.d("TrackerViewModel.addTarget()", "Target added to Firestore")
-                    else Log.e("TrackerViewModel.addTarget()", errorMessage.toString())
-                }
-            } else {
-                Log.e("TrackerViewModel.addTarget()", "No Firebase user available")
+            viewStateInternal.update { currentState ->
+                val updatedTargetsList = currentState.targetsList.toMutableList()
+                updatedTargetsList.add(newTrackingTarget)
+                currentState.copy(targetsList = updatedTargetsList) // sets the new list
             }
-        }
 
-        Log.d("TrackerViewModel.addTarget()", "Added target: $targetId | List is: ${viewStateInternal.value.targetsList.toList()}")
+            // saves the target into Firestore
+            repository.getCurrentUser { user ->
+                if (user != null) {
+                    repository.addTarget(user.uid, newTrackingTarget) { isSuccess, errorMessage ->
+                        if (isSuccess) Log.d("TrackerViewModel.addTarget()", "Target added to Firestore")
+                        else Log.e("TrackerViewModel.addTarget()", errorMessage.toString())
+                    }
+                } else {
+                    Log.e("TrackerViewModel.addTarget()", "No Firebase user available")
+                }
+            }
+
+            Log.d("TrackerViewModel.addTarget()", "Added target: $targetId | List is: ${viewStateInternal.value.targetsList.toList()}")
+        }
     }
 
     /**
@@ -195,39 +213,25 @@ class TrackerViewModel(
         }
     }
 
+    /**
+     * Updates the current position on path of the  target with the given [targetId].
+     * @param targetId the ID of the target to update
+     * @param latitude new latitude coordinate
+     * @param longitude new longitude coordinate
+     */
     private fun updateTargetPosition(targetId: String, latitude: Double, longitude: Double) {
-        /*val currentState = viewStateInternal.value
-        val updatedTargets = currentState.targetsList.toMutableList()
-        val targetIndex = updatedTargets.indexOfFirst { it.id == targetId }
-
-        if (targetIndex != -1) {
-            updatedTargets[targetIndex].currentPosition = LatLng(latitude, longitude)
-            viewStateInternal.value = currentState.copy(targetsList = updatedTargets)
-            //viewStateInternal.update { it.copy(targetsList = updatedTargets) }
-            Log.d("TrackerViewModel.updateSelectedTargetPosition()", "Update: ${updatedTargets[targetIndex]}")
-        }*/
-
         viewStateInternal.update { currentViewState ->
             val updatedTargetsList = currentViewState.targetsList.toMutableList()
             val updationIndex = updatedTargetsList.indexOfFirst { it.id == targetId }
 
-            updatedTargetsList[updationIndex].currentPosition = LatLng(latitude, longitude)
+            updatedTargetsList[updationIndex].apply {
+                currentPosition = LatLng(latitude, longitude)
+                path.add(LatLng(latitude, longitude))
+            }
+
             Log.d("TrackerViewModel.updateSelectedTargetPosition()", "Update: ${updatedTargetsList[updationIndex]}")
-
-            currentViewState.copy(targetsList = updatedTargetsList)
+            currentViewState.copy(targetsList = updatedTargetsList, isTargetUpdate = !currentViewState.isTargetUpdate)
         }
-
-        /*viewStateInternal.update { currentState ->
-            val updatedTargetsList = currentState.targetsList.toMutableList() // get the current list
-
-            latLng?.let { updatedTargetsList.add(it) } // append the new coordinates
-            currentState.copy(coordinates = updatedTargetsList) // create the new state
-
-            currentState.copy(
-                cameraPosition = LatLng(mqttMessage.latitude, mqttMessage.longitude),
-                targetPosition = LatLng(mqttMessage.latitude, mqttMessage.longitude)
-            )
-        }*/
     }
 
     /**
@@ -242,28 +246,42 @@ class TrackerViewModel(
     }
 
     /**
-     * Calls [startUpdateSelfPosition] to obtain self coordinates and calls [openGoogleMapsForRoute]
+     * Starts receiving the current location of this user once by setting a [locationCallback] to
+     * update the `selfPosition` state and by calling [startLocationUpdates]. Calls
+     * [openGoogleMapsForRoute] with the received user coordinates and given [targetCoordinates]
      * to show a route to the target on Google Maps.
-     * @param context global Application object of the current process
+     * @param context to pass to [openGoogleMapsForRoute]
      * @param targetCoordinates target coordinates
      */
-    private fun showRouteToTarget(context: Context, targetCoordinates: LatLng) {
-        startUpdateSelfPosition(context)
+    private fun showRouteToTarget(context: Context, targetCoordinates: LatLng?) {
+        locationCallback = object : LocationCallback() {
+            override fun onLocationResult(locationResult: LocationResult) {
+                locationResult.lastLocation?.let { userCoordinates ->
+                    if (targetCoordinates != null) {
+                        val origin = "${userCoordinates.latitude},${userCoordinates.longitude}"
+                        val destination = "${targetCoordinates.latitude},${targetCoordinates.longitude}"
 
-        val origin = "${viewStateInternal.value.selfPosition.latitude},${viewStateInternal.value.selfPosition.longitude}"
-        val destination = "${targetCoordinates.latitude},${targetCoordinates.longitude}"
+                        viewStateInternal.update { it.copy(selfPosition = LatLng(userCoordinates.latitude, userCoordinates.longitude)) }
+                        stopLocationUpdates() // get the location only one
+                        locationCallback = null
+                        openGoogleMapsForRoute(origin, destination, context)
+                    } else {
+                        Log.e("TrackerViewModel.showRouteToTarget()", "Target coordinates are null")
+                    }
+                }
+            }
+        }
 
-        openGoogleMapsForRoute(origin, destination, context)
+        startLocationUpdates(context)
     }
 
     /**
      * Starts receiving the user location via [startLocationUpdates] and updates the states of
-     * `isRouteToTargetOn` and `selfPosition`.
-     * @param context global Application object of the current process
+     * `isShowSelfLocation` and `selfPosition`.
+     * @param context to pass to [startLocationUpdates]
      */
     private fun startUpdateSelfPosition(context: Context) {
-        viewStateInternal.update { it.copy(isRouteToTargetOn = true) }
-        fusedLocationClient = LocationServices.getFusedLocationProviderClient(context)
+        viewStateInternal.update { it.copy(isShowSelfLocation = true) }
 
         // behavior to handle the received location updates
         locationCallback = object : LocationCallback() {
@@ -275,19 +293,25 @@ class TrackerViewModel(
             }
         }
 
-        startLocationUpdates()
+        startLocationUpdates(context)
     }
 
+    /**
+     * Changes the state of `isShowSelfLocation` to false and calls [stopLocationUpdates] to
+     * stop the updates.
+     */
     private fun stopUpdateSelfPosition() {
-        viewStateInternal.update { it.copy(isRouteToTargetOn = false) }
+        viewStateInternal.update { it.copy(isShowSelfLocation = false) }
         stopLocationUpdates()
     }
 
     /**
      * Starts requesting location updates based on [LocationRequest] every 5 seconds.
+     * @param context context to create the [FusedLocationProviderClient]
      */
     @SuppressLint("MissingPermission")
-    private fun startLocationUpdates() {
+    private fun startLocationUpdates(context: Context) {
+        fusedLocationClient = LocationServices.getFusedLocationProviderClient(context)
         val locationRequest = LocationRequest.Builder(Priority.PRIORITY_HIGH_ACCURACY, 5000L).build()
         locationCallback?.let { fusedLocationClient.requestLocationUpdates(locationRequest, it, Looper.getMainLooper()) }
     }
@@ -299,9 +323,15 @@ class TrackerViewModel(
         locationCallback?.let { fusedLocationClient.removeLocationUpdates(it) }
     }
 
+    /**
+     * Opens the Google Maps app if available and provides it a [source] and a [destination] to show
+     * a route between them.
+     * @param source start location
+     * @param destination end location
+     * @param context global Application object of the current process
+     */
     private fun openGoogleMapsForRoute(source: String, destination: String, context: Context) {
         try {
-            //val mapsUri = Uri.parse("https://www.google.com/maps/dir/$source/$destination")
             val mapsUri = Uri.parse("https://www.google.com/maps/dir/?api=1&origin=$source&destination=$destination&travelmode=driving")
             val openMapsIntent = Intent(Intent.ACTION_VIEW, mapsUri)
 

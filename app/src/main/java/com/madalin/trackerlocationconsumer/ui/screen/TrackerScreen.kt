@@ -1,6 +1,8 @@
 package com.madalin.trackerlocationconsumer.ui.screen
 
 import android.Manifest
+import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -18,6 +20,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Add
 import androidx.compose.material.icons.rounded.Close
 import androidx.compose.material.icons.rounded.ExitToApp
+import androidx.compose.material.icons.rounded.LocationOn
 import androidx.compose.material.icons.rounded.Person
 import androidx.compose.material.icons.rounded.Search
 import androidx.compose.material.icons.rounded.Send
@@ -37,6 +40,10 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.PaintingStyle.Companion.Stroke
+import androidx.compose.ui.graphics.StrokeJoin
+import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.TextStyle
@@ -57,6 +64,7 @@ import com.google.maps.android.compose.MapType
 import com.google.maps.android.compose.MapUiSettings
 import com.google.maps.android.compose.Marker
 import com.google.maps.android.compose.MarkerState
+import com.google.maps.android.compose.Polyline
 import com.madalin.trackerlocationconsumer.R
 import com.madalin.trackerlocationconsumer.feature.auth.login.LoginAction
 import com.madalin.trackerlocationconsumer.feature.tracker.TrackerAction
@@ -70,12 +78,10 @@ import com.madalin.trackerlocationconsumer.ui.theme.PastelGreen
 import com.madalin.trackerlocationconsumer.ui.theme.Purple40
 import com.madalin.trackerlocationconsumer.ui.theme.TintedYellow
 import com.ramcosta.composedestinations.annotation.Destination
-import com.ramcosta.composedestinations.annotation.RootNavGraph
 import com.ramcosta.composedestinations.navigation.DestinationsNavigator
 import org.koin.androidx.compose.getViewModel
 
 @OptIn(ExperimentalPermissionsApi::class)
-//@RootNavGraph(start = true)
 @Destination
 @Composable
 fun TrackerScreen(
@@ -88,20 +94,22 @@ fun TrackerScreen(
     val context = LocalContext.current.applicationContext
     val permissionState = rememberPermissionState(Manifest.permission.ACCESS_FINE_LOCATION) // location permission state
 
-    println("sus")
-
     Box(modifier = Modifier.fillMaxSize()) {
         TrackerMap(
             //cameraPosition = viewState.cameraPosition,
             selfPosition = viewState.selfPosition,
             targetsList = viewState.targetsList,
-            isRouteToTargetOn = viewState.isRouteToTargetOn,
+            selectedTargetPathId = viewState.selectedTargetPathId,
+            isShowSelfLocation = viewState.isShowSelfLocation,
+            isShowTargetPath = viewState.isShowTargetPath,
             zoomValue = zoomValue //viewState.zoomValue,
         )
 
-        println("box")
-
         ButtonsColumn(
+            isShowSelfLocation = viewState.isShowSelfLocation,
+            permissionState = permissionState,
+            startShowingSelfLocation = { trackerViewModel.handleTrackerAction(TrackerAction.StartShowingSelfLocation(context)) },
+            stopShowingSelfLocation = { trackerViewModel.handleTrackerAction(TrackerAction.StopShowingSelfLocation) },
             onAddTargetClick = { trackerViewModel.handleTrackerAction(TrackerAction.ToggleAddTargetDialog(true)) },
             onShowTargetsClick = { trackerViewModel.handleTrackerAction(TrackerAction.ToggleShowTargetsDialog(true)) },
             onLogOutClick = {
@@ -123,22 +131,14 @@ fun TrackerScreen(
         TargetsDialog(
             isTargetsDialogShown = viewState.isTargetsDialogShown, // show "Targets" dialog when true
             targetsList = viewState.targetsList,
-            onShowTargetPathClick = { },
+            permissionState = permissionState,
+            isShowTargetPath = viewState.isShowTargetPath,
+            onShowRouteToTargetClick = { targetCoordinates -> trackerViewModel.handleTrackerAction(TrackerAction.ShowRouteToTarget(context, targetCoordinates)) },
+            showTargetPath = { targetId -> trackerViewModel.handleTrackerAction(TrackerAction.ShowTargetPath(targetId)) },
+            hideTargetPath = { trackerViewModel.handleTrackerAction(TrackerAction.HideTargetPath) },
             onDeleteTargetClick = { targetId -> trackerViewModel.handleTrackerAction(TrackerAction.DeleteTarget(targetId)) },
             onClose = { trackerViewModel.handleTrackerAction(TrackerAction.ToggleShowTargetsDialog(false)) },
-            isRouteToTargetOn = viewState.isRouteToTargetOn,
-            permissionState = permissionState,
-            onStartRouteToTarget = { targetCoordinates -> trackerViewModel.handleTrackerAction(TrackerAction.StartRouteToTarget(context, targetCoordinates)) },
-            onStopRouteToTarget = { trackerViewModel.handleTrackerAction(TrackerAction.StopRouteToTarget) }
         )
-
-        /*BringToTargetButton(
-            isTracking = viewState.isTracking, // show "Bring to target" button when tracking in on
-            isBringToTargetOn = viewState.isBringToTargetOn,
-            permissionState = permissionState,
-            onStart = { trackerViewModel.handleTrackerAction(TrackerAction.StartBringToTarget(context)) },
-            onStop = { trackerViewModel.handleTrackerAction(TrackerAction.StopBringToTarget) }
-        )*/
 
         /*if (permissionState.permission == Permission) {
             // Permission denied, show message and redirect to settings app on click
@@ -169,8 +169,10 @@ fun TrackerMap(
     //cameraPosition: LatLng,
     selfPosition: LatLng,
     targetsList: List<TrackingTarget>,
+    selectedTargetPathId: String,
+    isShowSelfLocation: Boolean,
+    isShowTargetPath: Boolean,
     zoomValue: Float,
-    isRouteToTargetOn: Boolean
 ) {
     val uiSettings by remember { mutableStateOf(MapUiSettings()) }
     val properties by remember { mutableStateOf(MapProperties(mapType = MapType.NORMAL)) }
@@ -181,6 +183,15 @@ fun TrackerMap(
         properties = properties,
         uiSettings = uiSettings
     ) {
+        // if "isShowSelfLocation" is on it shows the self marker
+        if (isShowSelfLocation) {
+            Marker(
+                state = MarkerState(position = selfPosition),
+                title = stringResource(R.string.my_location),
+                icon = BitmapDescriptorFactory.defaultMarker(BitmapDescriptorFactory.HUE_CYAN)
+            )
+        }
+
         // show every target marker
         for (target in targetsList) {
             target.currentPosition?.let {
@@ -192,31 +203,51 @@ fun TrackerMap(
             }
         }
 
-        // if "Route to target" is on it shows the self marker and a line to the target
-        if (isRouteToTargetOn) {
-            Marker(
-                state = MarkerState(position = selfPosition),
-                title = stringResource(R.string.my_location),
-                icon = BitmapDescriptorFactory.defaultMarker(BitmapDescriptorFactory.HUE_CYAN)
+        // if "isShowTargetPath" is enabled
+        if (isShowTargetPath) {
+            val targetPathIndex = targetsList.indexOfFirst { it.id == selectedTargetPathId }
+
+            Polyline(
+                points = targetsList[targetPathIndex].path,
+                color = Color.Blue
             )
-            /*Polyline(
-                points = listOf(selfPosition, targetsList),
-                color = Color.Red
-            )*/
         }
     }
 }
 
+@OptIn(ExperimentalPermissionsApi::class)
 @Composable
 fun ButtonsColumn(
+    isShowSelfLocation: Boolean,
+    permissionState: PermissionState,
+    startShowingSelfLocation: () -> Unit,
+    stopShowingSelfLocation: () -> Unit,
     onAddTargetClick: () -> Unit,
     onShowTargetsClick: () -> Unit,
     onLogOutClick: () -> Unit
 ) {
     Column(
-        modifier = Modifier.padding(start = 15.dp, top = 50.dp),
-        verticalArrangement = Arrangement.spacedBy(15.dp),
+        modifier = Modifier.padding(10.dp),
+        verticalArrangement = Arrangement.spacedBy(10.dp),
     ) {
+        // show self location button
+        RoundedIconButton(
+            icon = if (isShowSelfLocation) Icons.Rounded.Close else Icons.Rounded.LocationOn,
+            onClick = {
+                if (isShowSelfLocation) { // if already shown, shops showing self location
+                    stopShowingSelfLocation()
+                } else {
+                    if (permissionState.status == PermissionStatus.Granted) { // if permission is granted
+                        startShowingSelfLocation()
+                    } else { // request permission
+                        permissionState.launchPermissionRequest()
+                    }
+                }
+            },
+            backgroundColor = Purple40,
+            contentDescription = stringResource(R.string.show_self_location)
+        )
+
         // add target button
         RoundedIconButton(
             icon = Icons.Rounded.Add,
@@ -281,13 +312,13 @@ fun AddTargetDialog(
 fun TargetsDialog(
     isTargetsDialogShown: Boolean,
     targetsList: List<TrackingTarget>,
-    onShowTargetPathClick: () -> Unit,
-    onDeleteTargetClick: (String) -> Unit,
-    onClose: () -> Unit,
-    isRouteToTargetOn: Boolean,
     permissionState: PermissionState,
-    onStartRouteToTarget: (LatLng) -> Unit,
-    onStopRouteToTarget: () -> Unit
+    isShowTargetPath: Boolean,
+    onShowRouteToTargetClick: (LatLng?) -> Unit,
+    showTargetPath: (String) -> Unit,
+    hideTargetPath: () -> Unit,
+    onDeleteTargetClick: (String) -> Unit,
+    onClose: () -> Unit
 ) {
     if (isTargetsDialogShown) {
         Dialog(onDismissRequest = { onClose() }) {
@@ -311,12 +342,12 @@ fun TargetsDialog(
                         items(targetsList) { target ->
                             TargetItem(
                                 target = target,
-                                onShowTargetPathClick = onShowTargetPathClick,
-                                onDeleteTargetClick = { onDeleteTargetClick(target.id) },
-                                isRouteToTargetOn = isRouteToTargetOn,
                                 permissionState = permissionState,
-                                onStartRouteToTarget = onStartRouteToTarget,
-                                onStopRouteToTarget = onStopRouteToTarget
+                                isShowTargetPath = isShowTargetPath,
+                                onShowRouteToTargetClick = { onShowRouteToTargetClick(target.currentPosition) },
+                                showTargetPath = { showTargetPath(target.id) },
+                                hideTargetPath = { hideTargetPath() },
+                                onDeleteTargetClick = { onDeleteTargetClick(target.id) }
                             )
                         }
                     }
@@ -336,12 +367,12 @@ fun TargetsDialog(
 @Composable
 fun TargetItem(
     target: TrackingTarget,
-    onShowTargetPathClick: () -> Unit,
-    onDeleteTargetClick: () -> Unit,
-    isRouteToTargetOn: Boolean,
     permissionState: PermissionState,
-    onStartRouteToTarget: (LatLng) -> Unit,
-    onStopRouteToTarget: () -> Unit
+    isShowTargetPath: Boolean,
+    onShowRouteToTargetClick: (LatLng?) -> Unit,
+    showTargetPath: (String) -> Unit,
+    hideTargetPath: () -> Unit,
+    onDeleteTargetClick: () -> Unit
 ) {
     Surface(
         modifier = Modifier.fillMaxWidth(),
@@ -372,26 +403,25 @@ fun TargetItem(
             RoundedIconButton(
                 icon = Icons.Rounded.Send,
                 onClick = {
-                    if (isRouteToTargetOn) { // if "Route" is on, it disables it
-                        onStopRouteToTarget()
-                    } else {
-                        if (permissionState.status == PermissionStatus.Granted) { // if permission is granted
-                            target.currentPosition?.let { onStartRouteToTarget(it) } // starts routing
-                        } else { // request permission
-                            permissionState.launchPermissionRequest()
-                        }
+                    if (permissionState.status == PermissionStatus.Granted) { // if permission is granted
+                        target.currentPosition?.let { onShowRouteToTargetClick(it) } // starts routing
+                    } else { // request permission
+                        permissionState.launchPermissionRequest()
                     }
                 },
                 size = 35.dp,
-                backgroundColor = PastelGreen
+                backgroundColor = if (target.currentPosition != null) PastelGreen else Color.Gray
             )
 
             // show target path button
             RoundedIconButton(
                 icon = Icons.Rounded.Search,
-                onClick = { onShowTargetPathClick() },
+                onClick = {
+                    if (isShowTargetPath) hideTargetPath() // if already showing, switch to hide
+                    else showTargetPath(target.id)
+                },
                 size = 35.dp,
-                backgroundColor = TintedYellow
+                backgroundColor = if (isShowTargetPath) DarkRed else TintedYellow
             )
 
             // delete target button
@@ -406,7 +436,11 @@ fun TargetItem(
 }
 
 @Composable
-fun ToggleTrackingSwitch(isTracking: Boolean, startTracking: () -> Unit, stopTracking: () -> Unit) {
+fun ToggleTrackingSwitch(
+    isTracking: Boolean,
+    startTracking: () -> Unit,
+    stopTracking: () -> Unit
+) {
     Column(
         modifier = Modifier.fillMaxWidth(),
         horizontalAlignment = Alignment.CenterHorizontally
@@ -415,40 +449,12 @@ fun ToggleTrackingSwitch(isTracking: Boolean, startTracking: () -> Unit, stopTra
             text = if (isTracking) stringResource(R.string.tracking_is_on)
             else stringResource(R.string.tracking_is_off)
         )
+
         Switch(
             checked = isTracking, //uiSettings.zoomControlsEnabled,
             onCheckedChange = {
                 if (isTracking) stopTracking() else startTracking() //uiSettings = uiSettings.copy(zoomControlsEnabled = it)
             }
         )
-    }
-}
-
-@OptIn(ExperimentalPermissionsApi::class)
-@Composable
-fun BringToTargetButton(
-    isTracking: Boolean,
-    isBringToTargetOn: Boolean,
-    permissionState: PermissionState,
-    onStart: () -> Unit,
-    onStop: () -> Unit
-) {
-    if (isTracking) {
-        Button(onClick = {
-            if (isBringToTargetOn) { // if "Bring" is on, it disables it
-                onStop()
-            } else {
-                if (permissionState.status == PermissionStatus.Granted) {
-                    onStart()
-                } else { // request permission
-                    permissionState.launchPermissionRequest()
-                }
-            }
-        }) {
-            Text(
-                text = if (isBringToTargetOn) stringResource(R.string.stop_bringing)
-                else stringResource(R.string.bring_me_to_target)
-            )
-        }
     }
 }

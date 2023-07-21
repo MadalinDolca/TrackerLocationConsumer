@@ -5,33 +5,15 @@ import com.google.android.gms.maps.model.LatLng
 import com.madalin.trackerlocationconsumer.entity.Action
 
 sealed class TrackerAction : Action {
-    data class ToggleAddTargetDialog(
-        val isAddTargetDialogShown: Boolean
-    ) : TrackerAction()
-
-    data class ToggleShowTargetsDialog(
-        val isTargetsDialogShown: Boolean
-    ) : TrackerAction()
-
-    data class AddTarget(
-        val targetId: String
-    ) : TrackerAction()
-
-    data class DeleteTarget(
-        val targetId: String
-    ) : TrackerAction()
-
-    data class CreatePath(
-        val targetId: String
-    ) : TrackerAction()
-
     object StartTrackingTargets : TrackerAction()
     object StopTrackingTargets : TrackerAction()
-
-    data class StartRouteToTarget(
-        val context: Context,
-        val targetCoordinates: LatLng
-    ) : TrackerAction()
-
-    object StopRouteToTarget : TrackerAction()
+    data class StartShowingSelfLocation(val context: Context) : TrackerAction()
+    object StopShowingSelfLocation : TrackerAction()
+    data class ToggleAddTargetDialog(val isAddTargetDialogShown: Boolean) : TrackerAction()
+    data class ToggleShowTargetsDialog(val isTargetsDialogShown: Boolean) : TrackerAction()
+    data class AddTarget(val targetId: String) : TrackerAction()
+    data class DeleteTarget(val targetId: String) : TrackerAction()
+    data class ShowRouteToTarget(val context: Context, val targetCoordinates: LatLng?) : TrackerAction()
+    data class ShowTargetPath(val targetId: String) : TrackerAction()
+    object HideTargetPath : TrackerAction()
 }

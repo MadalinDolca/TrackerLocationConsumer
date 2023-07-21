@@ -19,4 +19,5 @@
     <string name="show_targets">Show targets</string>
     <string name="tracking_targets">Tracking targets</string>
     <string name="close">Close</string>
+    <string name="show_self_location">Show self location</string>
 </resources>
