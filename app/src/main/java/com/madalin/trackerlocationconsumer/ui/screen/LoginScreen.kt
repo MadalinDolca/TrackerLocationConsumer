@@ -39,7 +39,6 @@ import com.ramcosta.composedestinations.annotation.RootNavGraph
 import com.ramcosta.composedestinations.navigation.DestinationsNavigator
 import org.koin.androidx.compose.getViewModel
 
-@RootNavGraph(start = true) // start destination
 @Destination
 @Composable
 fun LoginScreen(
